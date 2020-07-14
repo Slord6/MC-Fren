@@ -27,10 +27,22 @@ const botInit = (bot) => {
     const defaultMove = new Movements(bot, mcData);
     defaultMove.allowFreeMotion = true
 
-    bot.on('chat', (username, message) => jobSelector(username, message, bot, masters));
-    bot.on('health', () => Utils.attackNearestMob(bot, defaultMove));
+    bot.on('chat', (username, message) => {
+        jobSelector(username, message, bot, masters, chat)
+    });
+    bot.on('whisper', (username, message) => {
+        jobSelector(username, message, bot, masters, chat, true)
+    });
+    const startTime = Date.now();
+    bot.on('health', () => {
+        if(Date.now() - startTime < 500) return;
+        Utils.attackNearestMob(bot, defaultMove)
+    });
+    bot.on('kicked', (reason) => console.log("kicked", reason));
 
-    chat.addChat(bot, 'Hi team!');
+    masters.forEach(master => {
+        chat.addChat(bot, `I'm online`, master);
+    });
 };;
 
 const config = {

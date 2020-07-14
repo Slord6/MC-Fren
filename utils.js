@@ -1,8 +1,9 @@
 const { GoalNear, GoalBlock, GoalXZ, GoalY, GoalInvert, GoalFollow } = require('mineflayer-pathfinder').goals
 let mcData;
+const toolMaterials = ['wooden', 'stone', 'iron', 'diamond', 'netherite', 'golden'];
 
 const behaviours = {
-    hunt: (bot, movement, amount, maxDist = 30) => {
+    hunt: (bot, movement, amount, maxDist = 30, cb = null) => {
         const mobs = Object.values(bot.entities)
                             .filter(entity => entity.kind === 'Passive mobs')
                             .filter(mob => !['squid', 'horse', 'salmon', 'wolf', 'bat'].includes(mob.name))
@@ -10,14 +11,12 @@ const behaviours = {
                             .sort((mobA, mobB) => {
             return (mobA.position.distanceTo(bot.entity.position) - mobB.position.distanceTo(bot.entity.position));
         }).slice(0, amount);
-        behaviours.kill(bot, movement, mobs, () => {
-            bot.chat(`Finished hunting`);
-        });
+        behaviours.kill(bot, movement, mobs, cb);
     },
 
     kill: (bot, movement, mobs, cb) => {
         if(mobs.length == 0) return cb ? cb() : null;
-        const tool = behaviours.bestTool(bot, {material: 'flesh'});
+        const tool = behaviours.bestToolOfTypeInInv(bot, 'sword', toolMaterials);
         if(tool) {
             bot.equip(tool, 'hand');
         }
@@ -55,11 +54,11 @@ const behaviours = {
         });
     },
 
-    harvest: (bot, blockName, movement, amount, mcData) => {
-        if(amount <= 0) return bot.chat(`I collected all the ${blockName} you asked for`);
+    harvest: (bot, blockName, movement, amount, mcData, cb) => {
+        if(amount <= 0) return cb ? cb(`I collected all the ${blockName} you asked for`) : null;
 
         const lookupBlock = mcData.blocksByName[blockName]; 
-        if(!lookupBlock) return bot.chat(`What's a ${blockName}?`);
+        if(!lookupBlock) return cb ? cb(`What's a ${blockName}?`) : null;
         const id = lookupBlock.id;
         
         let block = bot.findBlock({
@@ -69,14 +68,13 @@ const behaviours = {
         });
 
         if(!block) {
-            bot.chat(`Can't see any more ${blockName} nearby`);
-            return;
+            return cb ? cb(`Can't see any more ${blockName} nearby`) : null;
         } else {
             bot.lookAt(block.position);
             behaviours.goToTarget(bot, block, movement, 1, () => {
                 behaviours.digBlockAt(bot, block.position, () => {
                     behaviours.collectDrops(bot, movement, 5, () => {
-                        setImmediate(behaviours.harvest.bind(this, bot, blockName, movement, --amount, mcData));
+                        setImmediate(behaviours.harvest.bind(this, bot, blockName, movement, --amount, mcData, cb));
                     });
                 });
             });
@@ -87,12 +85,12 @@ const behaviours = {
         return bot.inventory.items().filter(item => item.name === name)[0];
     },
 
-    tossItem: (bot, name, amount, toPerson) => {
+    tossItem: (bot, name, amount, toPerson, cb) => {
         bot.lookAt(bot.players[toPerson].entity.position, false, () => {
             amount = parseInt(amount, 10);
             const item = behaviours.inventoryItemByName(bot, name);
             if (!item) {
-                bot.chat(`I have no ${name}`);
+                cb(`I have no ${name}`);
             } else if (amount) {
                 bot.toss(item.type, null, amount, checkIfTossed);
             } else {
@@ -101,16 +99,16 @@ const behaviours = {
         
             function checkIfTossed (err) {
             if (err) {
-                bot.chat(`might be a few short of what you wanted`);
+                cb(`might be a few short of what you wanted`);
             } else {
-                bot.chat(`dropped the ${name}`);
+                cb(`dropped the ${name}`);
             }
             }
         });
     },
 
     nearbyBlocks: (bot, maxDist = 30) => {
-        bot.chat('One sec, just counting blocks...');
+        console.log('One sec, just counting blocks...');
         let nearbyBlocks = {};
         for(let y = maxDist * -1; y <= maxDist; y++) {
             for(let x = maxDist * -1; x <= maxDist; x++) {
@@ -125,9 +123,11 @@ const behaviours = {
         }
         let names = Object.keys(nearbyBlocks);
         let amounts = Object.values(nearbyBlocks);
-        return names.map((name, index) => {
+        const result = names.map((name, index) => {
             return {name, amount: amounts[index]}
         }).sort((x,y) => y.amount - x.amount).map(x => `${x.name}x${x.amount}`);
+        console.log(result);
+        return result;
     },
 
     itemByNameIndex: (bot) => {
@@ -144,28 +144,22 @@ const behaviours = {
         return mcData[behaviours.itemByNameIndex(bot)][name]
     },
 
-    equipByName: (bot, name, mcData, output = true) => {
+    equipByName: (bot, name, mcData, cb) => {
         const item = mcData[behaviours.itemByNameIndex(bot)][name];
-        if(!item) return bot.chat(`Equip a ${name}? What do you mean?`);
+        if(!item) return cb(`Equip a ${name}? What do you mean?`);
 
         bot.equip(item.id, 'hand', (err) => {
             if (err) {
-                if(output) bot.chat(`unable to equip ${name}, ${err.message}`);
-                return false;
+                return cb(`unable to equip ${name}, ${err.message}`);
             } else {
-                if(output) bot.chat(`ok, got ${name}`);
-                return true;
+                return cb(`ok, got ${name}`);
             }
         });
     },
 
-    sayItems: (bot, items) => {
+    inventoryAsString: (bot, items) => {
         const output = items.map(behaviours.itemToString).join(', ')
-        if (output) {
-            bot.chat(output)
-        } else {
-            bot.chat('nothing')
-        }
+        return output ? output : 'nothing';
     },
 
     itemToString: (item) => {
@@ -176,14 +170,14 @@ const behaviours = {
         }
     },
 
-    hole: (bot, messageParts, defaultMove) => {
+    hole: (bot, messageParts, defaultMove, cb) => {
         if(messageParts.length < 2) {
-            bot.chat("How big though?");
+            cb("How big though?");
             return;
         }
         // width, length, depth
         const size = messageParts[1].split('x');
-        bot.chat(size[0] + " along x, " + size[1] + " along z and " + size[2] + " deep - got it!");
+        cb(size[0] + " along x, " + size[1] + " along z and " + size[2] + " deep - got it!");
         let offsets = {
             x: Math.floor(Number(size[0])/2),
             z: Math.floor(Number(size[1])/2),
@@ -199,7 +193,7 @@ const behaviours = {
             }
         }
 
-        behaviours.digBlocksInOrder(bot, positions, () => bot.chat("Finished my hole :)"), defaultMove);
+        behaviours.digBlocksInOrder(bot, positions, () => cb("Finished my hole :)"), defaultMove);
     },
 
     visitInOrder: (bot, positions, onComplete, defaultMove) => {
@@ -251,7 +245,6 @@ const behaviours = {
 
     info: (bot, messageParts) => {
         const playerName = messageParts[1];
-        bot.chat("Info about " + playerName);
         
         const player = bot.players[playerName];
         let info = null;
@@ -262,7 +255,7 @@ const behaviours = {
             info = 'No-one is called ' + playerName;
         }
 
-        bot.chat(info);
+        return "Info about " + playerName + "\r\n" + info;
     },
 
     stop: (bot) => {
@@ -276,8 +269,7 @@ const behaviours = {
 
     goToTarget: (bot, target, movement, dist = 0, cb) => {
         if (!target) {
-            bot.chat('I can\'t see there!');
-            if(cb) cb();
+            if(cb) cb(false);
             return;
         }
         const p = target.position;
@@ -288,7 +280,7 @@ const behaviours = {
 
         const callbackCheck = () => {
             if(goal.isEnd(bot.entity.position.floored())) {
-                cb();
+                cb(true);
             } else {
                 setTimeout(callbackCheck.bind(this), 1000);
             }
