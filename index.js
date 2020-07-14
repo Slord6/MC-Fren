@@ -14,8 +14,14 @@ let botNames = [
 ];
 const host = process.argv[2];
 const port = parseInt(process.argv[3], 10);
-const masters = [process.argv[4]];
+const password = process.argv[4];
+const masters = [process.argv[5]];
 
+const autoLogin = (bot) => {
+    chat.addChat(bot, `/register ${password} ${password}`);
+    chat.addChat(bot, `/login ${password}`);
+    password = null;
+};
 
 const botInit = (bot) => {
     bot.loadPlugins([require('mineflayer-pathfinder').pathfinder]);
@@ -39,6 +45,8 @@ const botInit = (bot) => {
         Utils.attackNearestMob(bot, defaultMove)
     });
     bot.on('kicked', (reason) => console.log("kicked", reason));
+
+    autoLogin(bot);
 
     masters.forEach(master => {
         chat.addChat(bot, `I'm online`, master);
@@ -72,6 +80,7 @@ const prepFriendlyProtection = (mcData) => {
                 if(!player) {
                     console.warn("No player found for auto protect");
                 } else {
+                    while(!player.entity) {}
                     player.entity.on('health', () => Utils.protectFriendly(bot, player, defaultMove));
                 }
             });
