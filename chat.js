@@ -11,11 +11,14 @@ const start = () => {
 }
 
 const addChat = (bot, message, directTo) => {
-    if(!directTo) {
-        chatStack.push({bot, message});
-    } else {
-        chatStack.push({bot, message: `/msg ${directTo} ` + message});
-    }
+    message.split('\n').forEach(message => {
+        if(!directTo) {
+            chatStack.push({bot, message});
+        } else {
+            chatStack.push({bot, message: `/msg ${directTo} ` + message});
+        }
+    });
+    
 }
 
 module.exports = {
