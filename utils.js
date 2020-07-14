@@ -339,7 +339,7 @@ const behaviours = {
         return b!==null && b.boundingBox!=="empty";
     },
 
-    attackNearestMob: (bot, defaultMove) => {
+    attackNearestMob: (bot, defaultMove, cb) => {
         const hostiles = Object.values(bot.entities)
                         .filter(entity => entity.kind === 'Hostile mobs')
                         .sort((mobA, mobB) => {
@@ -349,7 +349,11 @@ const behaviours = {
         if(hostiles.length > 0) {
             const hostile = hostiles[0];
             if(hostile.position.distanceTo(bot.entity.position) < 10) {
-                behaviours.kill(bot, defaultMove, [hostile]);
+                behaviours.kill(bot, defaultMove, [hostile], () => {
+                    if(cb) cb("Got it!");
+                });
+            } else {
+                if(cb) cb("there aren't any nearby mobs though")
             }
         }
     },

@@ -95,6 +95,12 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false) =>
                 chat.addChat(bot, 'finished hunting', returnAddress);
             });
             break;
+        case 'protect':
+            chat.addChat(bot, "I'm on it", returnAddress);
+            Utils.attackNearestMob(bot, defaultMove, (msg) => {
+                chat.addChat(bot, msg, returnAddress);
+            });
+            break;
         case 'goto':
         case 'go':
             let goto = (messageParts) => {
