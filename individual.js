@@ -157,20 +157,23 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false) =>
         case 'craft':
             let itemName = messageParts[1];
             let amount = messageParts.length > 2 ? parseInt(messageParts[2]) : 1;
-            let craftingTableItem = Utils.nameToBlock('crafting_table', mcData);
+            let craftingTableBlockInfo = Utils.nameToBlock('crafting_table', mcData);
 
             let craftingTable = bot.findBlockSync({
-                matching: craftingTableItem.id,
+                matching: craftingTableBlockInfo.id,
                 point: bot.entity.position
               })[0];
-            
-            Utils.craft(bot, itemName, mcData, amount, craftingTable, (err) => {
-                if(err) {
-                    chat.addChat(bot, `Couldn't make a ${itemName}`, returnAddress);
-                    console.log(err);
-                } else {
-                    chat.addChat(bot, `Made the ${itemName}`, returnAddress);
-                }
+
+            Utils.goToTarget(bot, craftingTable, defaultMove, 2, (arrivedSuccessfully) => {
+                if(!arrivedSuccessfully) return chat.addChat(bot, `Couldn't get to the crafting table`, returnAddress);
+                Utils.craft(bot, itemName, mcData, amount, craftingTable, (err) => {
+                    if(err) {
+                        chat.addChat(bot, `Couldn't make a ${itemName}`, returnAddress);
+                        console.log(err);
+                    } else {
+                        chat.addChat(bot, `Made the ${itemName}`, returnAddress);
+                    }
+                });
             });
             break;
         case 'sethome':

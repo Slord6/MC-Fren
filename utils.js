@@ -57,15 +57,15 @@ const behaviours = {
     harvest: (bot, blockName, movement, amount, mcData, cb) => {
         if(amount <= 0) return cb ? cb(`I collected all the ${blockName} you asked for`) : null;
 
-        const lookupBlock = mcData.blocksByName[blockName]; 
+        const lookupBlock = behaviours.nameToBlock(blockName, mcData); 
         if(!lookupBlock) return cb ? cb(`What's a ${blockName}?`) : null;
         const id = lookupBlock.id;
         
-        let block = bot.findBlock({
+        let block = bot.findBlockSync({
             matching: id,
             point: bot.entity.position,
             maxDistance: 30
-        });
+        })[0];
 
         if(!block) {
             return cb ? cb(`Can't see any more ${blockName} nearby`) : null;
