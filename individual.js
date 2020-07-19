@@ -185,6 +185,12 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false) =>
             console.log('repeat', msgToSend);
             chat.addChat(bot, msgToSend, null);
             break;
+        case 'use':
+            bot.activateItem();
+            break;
+        case 'disuse':
+            bot.deactivateItem();
+            break;
         default:
             chat.addChat(bot, 'I don\'t understand', returnAddress);
             return;
