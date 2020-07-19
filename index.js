@@ -25,6 +25,7 @@ const autoLogin = (bot) => {
 
 const botInit = (bot) => {
     bot.loadPlugins([require('mineflayer-pathfinder').pathfinder]);
+    bot.loadPlugins([require('mineflayer-pathfinder').pathfinder, require('mineflayer-armor-manager'), require('mineflayer-blockfinder')(mineflayer)]);
     console.log(bot.username, 'initalised');
     // Once we've spawn, it is safe to access mcData because we know the version
     const mcData = require('minecraft-data')(bot.version);

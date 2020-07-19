@@ -13,6 +13,8 @@
   "license": "MIT",
   "dependencies": {
     "mineflayer": "^2.23.0",
+    "mineflayer": "^2.24.0",
+    "mineflayer-armor-manager": "^1.1.0",
     "mineflayer-pathfinder": "^1.0.9"
   }
 }
