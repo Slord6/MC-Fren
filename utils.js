@@ -371,6 +371,7 @@ const behaviours = {
     craft: (bot, itemName, mcData, amount = 1, craftingTable = null, craftComplete) => {
         let recipes = behaviours.getRecipe(bot, itemName, amount, mcData, craftingTable);
         if(!recipes || recipes.length === 0) return craftComplete(`No recipes for ${itemName}`);
+        if(recipes[0].inShape) recipes[0].inShape = recipes[0].inShape.reverse();
         bot.craft(recipes[0], amount, craftingTable, craftComplete);
     },
 
