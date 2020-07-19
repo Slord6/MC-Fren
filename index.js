@@ -14,7 +14,7 @@ let botNames = [
 ];
 const host = process.argv[2];
 const port = parseInt(process.argv[3], 10);
-const password = process.argv[4];
+let password = process.argv[4];
 const masters = [process.argv[5]];
 
 const autoLogin = (bot) => {
