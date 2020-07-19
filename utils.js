@@ -108,7 +108,6 @@ const behaviours = {
     },
 
     nearbyBlocks: (bot, maxDist = 30) => {
-        console.log('One sec, just counting blocks...');
         let nearbyBlocks = {};
         for(let y = maxDist * -1; y <= maxDist; y++) {
             for(let x = maxDist * -1; x <= maxDist; x++) {
@@ -126,7 +125,6 @@ const behaviours = {
         const result = names.map((name, index) => {
             return {name, amount: amounts[index]}
         }).sort((x,y) => y.amount - x.amount).map(x => `${x.name}x${x.amount}`);
-        console.log(result);
         return result;
     },
 
@@ -142,6 +140,10 @@ const behaviours = {
 
     nameToItem: (bot, name, mcData) => {
         return mcData[behaviours.itemByNameIndex(bot)][name]
+    },
+
+    nameToBlock: (name, mcData) => {
+        return mcData.blocksByName[name]
     },
 
     equipByName: (bot, name, mcData, cb) => {
@@ -368,13 +370,12 @@ const behaviours = {
 
     craft: (bot, itemName, mcData, amount = 1, craftingTable = null, craftComplete) => {
         let recipes = behaviours.getRecipe(bot, itemName, amount, mcData, craftingTable);
-        if(!recipes) return craftComplete(`No recipes for ${itemName}`); //poss callback craftComplete with false?
+        if(!recipes || recipes.length === 0) return craftComplete(`No recipes for ${itemName}`);
         bot.craft(recipes[0], amount, craftingTable, craftComplete);
     },
 
     getRecipe: (bot, itemName, amount, mcData, craftingTable = null) => {
         const item = behaviours.nameToItem(bot, itemName, mcData);
-        console.log('item', item);
         if(!item) return null;
         return bot.recipesFor(item.id, null, amount, craftingTable);
     },

@@ -24,7 +24,6 @@ const autoLogin = (bot) => {
 };
 
 const botInit = (bot) => {
-    bot.loadPlugins([require('mineflayer-pathfinder').pathfinder]);
     bot.loadPlugins([require('mineflayer-pathfinder').pathfinder, require('mineflayer-armor-manager'), require('mineflayer-blockfinder')(mineflayer)]);
     console.log(bot.username, 'initalised');
     // Once we've spawn, it is safe to access mcData because we know the version
@@ -54,15 +53,6 @@ const botInit = (bot) => {
     });
 };;
 
-const config = {
-    host,
-    port,
-    initCallback: botInit
-  };
-
-chat.start();
-const swarm = createSwarm(botNames, config, mineflayer);
-
 let haveSetupProtection = false;
 const prepFriendlyProtection = (mcData) => {
     if(haveSetupProtection) return;
@@ -89,3 +79,12 @@ const prepFriendlyProtection = (mcData) => {
     });
     haveSetupProtection = true;
 }
+
+const config = {
+    host,
+    port,
+    initCallback: botInit
+};
+
+chat.start();
+const swarm = createSwarm(botNames, config, mineflayer);
