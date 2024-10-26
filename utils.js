@@ -1,4 +1,6 @@
-const { GoalNear, GoalBlock, GoalXZ, GoalY, GoalInvert, GoalFollow } = require('mineflayer-pathfinder').goals
+const { Vec3 } = require('vec3');
+
+const { GoalNear, GoalGetToBlock, GoalXZ, GoalY, GoalInvert, GoalFollow } = require('mineflayer-pathfinder').goals
 let mcData;
 const toolMaterials = ['wooden', 'stone', 'iron', 'diamond', 'netherite', 'golden'];
 
@@ -98,11 +100,11 @@ const behaviours = {
             }
         
             function checkIfTossed (err) {
-            if (err) {
-                cb(`might be a few short of what you wanted`);
-            } else {
-                cb(`dropped the ${name}`);
-            }
+                if (err) {
+                    cb(`might be a few short of what you wanted`);
+                } else {
+                    cb(`dropped the ${name}`);
+                }
             }
         });
     },
@@ -128,6 +130,19 @@ const behaviours = {
         return result;
     },
 
+    nearbyBlocksRawMatching: (bot, maxDist = 30, includeBlock = () => true) => {
+        let nearbyBlocks = [];
+        for(let y = maxDist * -1; y <= maxDist; y++) {
+            for(let x = maxDist * -1; x <= maxDist; x++) {
+                for(let z = maxDist * -1; z <= maxDist; z++) {
+                    let block = bot.blockAt(bot.entity.position.offset(x, y, z));
+                    if(includeBlock(block)) nearbyBlocks.push(block);
+                }
+            }
+        }
+        return nearbyBlocks;
+    },
+
     itemByNameIndex: (bot) => {
         let itemsByName
         if (bot.supportFeature('itemsAreNotBlocks')) {
@@ -147,6 +162,21 @@ const behaviours = {
     },
 
     equipByName: (bot, name, mcData, cb) => {
+        const item = mcData[behaviours.itemByNameIndex(bot)][name];
+        // console.log(`item to equip: ${item.id}, ${item.name} (${name})`);
+        if(!item) return cb(false);
+
+        bot.equip(item.id, 'hand', (err) => {
+            if (err) {
+                console.error(err);
+                return cb(false);
+            } else {
+                return cb(true);
+            }
+        });
+    },
+
+    equipByNameDescriptive: (bot, name, mcData, cb) => {
         const item = mcData[behaviours.itemByNameIndex(bot)][name];
         if(!item) return cb(`Equip a ${name}? What do you mean?`);
 
@@ -238,7 +268,7 @@ const behaviours = {
         
         bot.equip(tool, 'hand', () => {
             if (target && bot.canDigBlock(target) && target.name != 'air') {
-                bot.dig(target, onComplete)
+                bot.dig(target, true, onComplete)
             } else {
                 if(onComplete) onComplete();
             }
@@ -291,6 +321,28 @@ const behaviours = {
         if(cb) callbackCheck();
     },
 
+    getAdjacentTo: (bot, target, movement, cb) => {
+        if (!target) {
+            if(cb) cb(false);
+            return;
+        }
+        const p = target.position;
+
+        bot.pathfinder.setMovements(movement);
+        const goal = new GoalGetToBlock(p.x, p.y, p.z);
+        bot.pathfinder.setGoal(goal);
+
+        const callbackCheck = () => {
+            if(goal.isEnd(bot.entity.position.floored())) {
+                cb(true);
+            } else {
+                setTimeout(callbackCheck.bind(this), 1000);
+            }
+        };
+
+        if(cb) callbackCheck();
+    },
+
     positionToString: (pos) => `${pos.x} ${pos.y} ${pos.z}`,
 
     watchFuncs: null,
@@ -314,8 +366,8 @@ const behaviours = {
                     if(action!=="")
                     {
                         bot.chat("gotcha");
-                        const deltaPos=newBlock.position.floored().minus(initialLoc);
-                        this.instructions.push(`goto ${behaviours.positionToString(deltaPos)}`);
+                        // const deltaPos=newBlock.position.floored().minus(initialLoc);
+                        this.instructions.push(`goto ${behaviours.positionToString(newBlock.position.floored())}`);
                     }
                 }
             }
@@ -388,6 +440,168 @@ const behaviours = {
     getHome: (bot) => {
         if(bot.homePositon) return bot.homePositon;
         return null;
+    },
+
+    fillChest: (bot, chestBlock, onComplete) => {
+        const chestInstance = bot.openChest(chestBlock);
+
+        chestInstance.on('open', () => {
+            const inventoryItems = bot.inventory.items();
+
+            const putItems = async (items) => {
+                if(items.length === 0) return chestInstance.close();
+                const item = items.shift();
+                console.log(`Taking ${item.count} ${item.name}`)
+                await behaviours.depositItem(item, item.count, chestInstance, () => putItems(items));
+            };
+            putItems(inventoryItems);
+        });
+        chestInstance.on('close', () => {
+            chestInstance.off('close', () => null);
+            chestInstance.off('open', () => null);
+            onComplete();
+        });
+    },
+
+    emptyChest: (bot, chestBlock, onComplete) => {
+        const chestInstance = bot.openChest(chestBlock);
+
+        chestInstance.on('open', () => {
+            const chestItems = chestInstance.items();
+
+            const takeItems = async (items) => {
+                if(items.length === 0) return chestInstance.close();
+                const item = items.shift();
+                console.log(`Taking ${item.count} ${item.name}`)
+                await behaviours.withdrawItem(item, item.count, chestInstance, () => takeItems(items));
+            };
+            takeItems(chestItems);
+        });
+        chestInstance.on('close', () => {
+            chestInstance.off('close', () => null);
+            chestInstance.off('open', () => null);
+            onComplete();
+        });
+    },
+
+    emptyNearestChest: (bot, maxDist, onComplete) => {
+        const chestBlock = behaviours.nearbyBlocksRawMatching(bot, maxDist, (block) => block.name == 'chest').sort((a,b) => bot.entity.position.distanceTo(a.position) - bot.entity.position.distanceTo(b.position))[0];
+        behaviours.emptyChest(bot, chestBlock, onComplete);
+    },
+
+    withdrawItem: async (item, amount, chest, onComplete) => {
+        try {
+            await chest.withdraw(item.type, null, amount, onComplete)
+        } catch (err) {
+            console.error(err);
+            console.error(`unable to withdraw ${amount} ${item.name}`)
+        }
+    },
+
+    depositItem: async (item, amount, chest, onComplete) => {
+        try {
+            await chest.deposit(item.type, null, amount, onComplete)
+        } catch (err) {
+            console.error(err);
+            console.error(`unable to deposit ${amount} ${item.name}`)
+        }
+    },
+
+    nonEmptyAdjacentBlocks: (bot, position) => {
+        let blocks = [];
+        for(let x = -1; x <= 1; x++) {
+            for(let y = -1; y <= 1; y++) {
+                for(let z = -1; z <= 1; z++) {
+                    // skip diagonals
+                    const totalOffset = Math.abs(x) + Math.abs(y) + Math.abs(z);
+                    if(totalOffset !== 1) continue;
+
+                    const adjacentBlock = bot.blockAt(position.offset(x, y, z));
+                    if(behaviours.isBlockNotEmpty(adjacentBlock)) blocks.push(adjacentBlock);
+                }
+            }
+        }
+        blocks = blocks.sort((a,b) => a.position.y - b.position.y); // default sort, easier to place on bottom of blocks if possible
+        return blocks;
+    },
+
+    // position MUST be a Vec3
+    placeBlockAt: (bot, position, blockName, mcData, cb) => {
+        behaviours.digBlockAt(bot, position, () => {
+            behaviours.equipByName(bot, blockName, mcData, (equippedSuccessfully) => {
+                if(!equippedSuccessfully) {
+                    console.error(`Could not equip ${blockName} for portal building`);
+                    return cb(false);
+                }
+                const adjacentBlocks = behaviours.nonEmptyAdjacentBlocks(bot, position);
+                if(adjacentBlocks.length == 0) return cb(false);
+                const placementFace = position.minus(adjacentBlocks[0].position);
+                bot.placeBlock(adjacentBlocks[0], placementFace, (err) => {
+                    if(err) {
+                        console.error(err, adjacentBlocks[0].name, adjacentBlocks[0].position, placementFace);
+                        cb(false);
+                    } 
+                    cb(true);
+                });
+            });
+        });
+    },
+
+    placeBlocksInOrder: (bot, positions, blockName, mcData, defaultMove, onComplete) => {
+        if(positions == null || positions == undefined || positions.length == 0) return onComplete ? onComplete() : null;
+        
+        const nextPosition = positions.shift();
+        behaviours.getAdjacentTo(bot, {position: nextPosition}, defaultMove, () => {
+            behaviours.placeBlockAt(bot, nextPosition, blockName, mcData, behaviours.placeBlocksInOrder.bind(this, bot, positions, blockName, mcData, defaultMove, onComplete));
+        });
+    },
+
+    placeBlocksSortByPlacability: (bot, positions, blockName, mcData, defaultMove, onComplete) => {
+        if(positions == null || positions == undefined || positions.length == 0) return onComplete ? onComplete() : null;
+        
+        positions = positions.sort((a,b) => behaviours.nonEmptyAdjacentBlocks(bot, b).length - behaviours.nonEmptyAdjacentBlocks(bot, a).length);
+        const nextPosition = positions.shift();
+        behaviours.getAdjacentTo(bot, {position: nextPosition}, defaultMove, () => {
+            behaviours.placeBlockAt(bot, nextPosition, blockName, mcData, behaviours.placeBlocksSortByPlacability.bind(this, bot, positions, blockName, mcData, defaultMove, onComplete));
+        });
+    },
+
+    valueIsBetweenInclusive: (value, left, right) => {
+        const small = Math.min(left, right);
+        const big = Math.max(left, right);
+        
+        return small <= value && value <= big;
+    },
+
+    buildPortal: (bot, bottomLeftPosition, topRightPosition, mcData, defaultMove, blockName, onComplete) => {
+        let minX = Math.min(bottomLeftPosition.x, topRightPosition.x);
+        let maxX = Math.max(bottomLeftPosition.x, topRightPosition.x);
+        let minY = Math.min(bottomLeftPosition.y, topRightPosition.y);
+        let maxY = Math.max(bottomLeftPosition.y, topRightPosition.y);
+        let minZ = Math.min(bottomLeftPosition.z, topRightPosition.z);
+        let maxZ = Math.max(bottomLeftPosition.z, topRightPosition.z);
+
+        let blockPositions = [];
+        let airPositions = []
+        for (let x = minX; x <= maxX; x++) {
+            for (let y = minY; y <= maxY; y++) {
+                for (let z = minZ; z <= maxZ; z++) {
+                    let portalBlockPos = new Vec3(x, y, z);
+                    // not at edges = air
+                    if(((x != minX && x != maxX) || (z != minZ && z != maxZ)) && y != minY && y != maxY) {
+                        airPositions.push(portalBlockPos);
+                    } else {
+                        let currentBlockAtPos = bot.blockAt(portalBlockPos);
+                        if((behaviours.isBlockNotEmpty(currentBlockAtPos) && currentBlockAtPos.name !== blockName) || behaviours.isBlockEmpty(currentBlockAtPos)) {
+                            blockPositions.push(portalBlockPos);
+                        }
+                    }
+                }
+            }
+        }
+        behaviours.placeBlocksSortByPlacability(bot, blockPositions, blockName, mcData, defaultMove, () => {
+            behaviours.digBlocksInOrder(bot, airPositions, onComplete, defaultMove);
+        });
     }
 }
 

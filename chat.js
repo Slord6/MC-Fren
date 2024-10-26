@@ -1,8 +1,9 @@
 
 const chatStack = [];
-const messageWaitTime = 2000;
+let messageWaitTime = 2000;
 
-const start = () => {
+const start = (waitTime) => {
+    if(waitTime) messageWaitTime = waitTime;
     if(chatStack.length > 0) {
         let info = chatStack.shift();
         info.bot.chat(info.message);

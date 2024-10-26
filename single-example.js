@@ -9,7 +9,7 @@ const bot = mineflayer.createBot({
     port: parseInt(process.argv[3]),
     username: process.argv[4] ? process.argv[4] : 'botfren',
     password: process.argv[5]
-  });
+});
 
 bot.loadPlugin(pathfinder)
 
@@ -21,24 +21,24 @@ bot.once('spawn', () => {
 
     bot.on("health", () => {
         const hostiles = Object.values(bot.entities)
-                        .filter(entity => entity.kind === 'Hostile mobs')
-                        .sort((mobA, mobB) => {
-                            return (mobA.position.distanceTo(bot.entity.position) - mobB.position.distanceTo(bot.entity.position));
-                        });
+            .filter(entity => entity.kind === 'Hostile mobs')
+            .sort((mobA, mobB) => {
+                return (mobA.position.distanceTo(bot.entity.position) - mobB.position.distanceTo(bot.entity.position));
+            });
 
-        if(hostiles.length > 0) {
+        if (hostiles.length > 0) {
             const hostile = hostiles[0];
-            if(hostile.position.distanceTo(bot.entity.position) < 10) {
+            if (hostile.position.distanceTo(bot.entity.position) < 10) {
                 kill(defaultMove, [hostile], () => bot.chat("Sorted myself out"));
             }
         }
     });
 
-    bot.on('chat', function(username, message) {
-  
+    bot.on('chat', function (username, message) {
+
         if (username === bot.username) return
         const pass = "pal ";
-        if(!message.startsWith(pass)) {
+        if (!message.startsWith(pass)) {
             return;
         }
         message = message.split(pass)[1];
@@ -46,7 +46,7 @@ bot.once('spawn', () => {
 
         const target = bot.players[username] ? bot.players[username].entity : null
 
-        switch(messageParts[0]){
+        switch (messageParts[0]) {
             case 'come':
                 goToTarget(target, defaultMove);
                 break;
@@ -69,21 +69,21 @@ bot.once('spawn', () => {
                 sayItems(bot.inventory.items());
                 break;
             case 'equip':
-                if(messageParts.length == 1) {
+                if (messageParts.length == 1) {
                     bot.chat("equip what?");
                     return;
                 }
                 equipByName(messageParts[1]);
                 break;
             case 'drop':
-                if(messageParts.length < 3) {
+                if (messageParts.length < 3) {
                     bot.chat("drop how much of what?!");
                     return;
                 }
                 tossItem(messageParts[2], messageParts[1], username);
                 break;
             case 'harvest':
-                if(messageParts.length == 1) {
+                if (messageParts.length == 1) {
                     bot.chat("Harvest how much of what!?");
                     return;
                 }
@@ -108,21 +108,21 @@ bot.once('spawn', () => {
 
 function hunt(movement, amount, maxDist = 30) {
     const mobs = Object.values(bot.entities)
-                        .filter(entity => entity.kind === 'Passive mobs')
-                        .filter(mob => !['squid', 'horse', 'salmon', 'wolf'].includes(mob.name))
-                        .filter(mob => mob.position.distanceTo(bot.entity.position) < maxDist)
-                        .sort((mobA, mobB) => {
-        return (mobA.position.distanceTo(bot.entity.position) - mobB.position.distanceTo(bot.entity.position));
-    }).slice(0, amount);
+        .filter(entity => entity.kind === 'Passive mobs')
+        .filter(mob => !['squid', 'horse', 'salmon', 'wolf'].includes(mob.name))
+        .filter(mob => mob.position.distanceTo(bot.entity.position) < maxDist)
+        .sort((mobA, mobB) => {
+            return (mobA.position.distanceTo(bot.entity.position) - mobB.position.distanceTo(bot.entity.position));
+        }).slice(0, amount);
     kill(movement, mobs, () => {
         bot.chat(`Finished hunting`);
     });
 }
 
 function kill(movement, mobs, cb) {
-    if(mobs.length == 0) return cb();
-    const tool = bestTool({material: 'flesh'});
-    if(tool) {
+    if (mobs.length == 0) return cb();
+    const tool = bestTool({ material: 'flesh' });
+    if (tool) {
         bot.equip(tool, 'hand');
     }
     const mob = mobs.shift();
@@ -131,7 +131,7 @@ function kill(movement, mobs, cb) {
 
     follow(mob, movement);
     const attackLoop = () => {
-        if(mob.isValid) {
+        if (mob.isValid) {
             bot.attack(mob);
             setTimeout(attackLoop, 100);
         } else {
@@ -145,13 +145,13 @@ function kill(movement, mobs, cb) {
 }
 
 function collectDrops(movement, drops, maxDist, cb) {
-    if(!drops) drops = Object.values(bot.entities)
-                        .filter(entity => entity.kind === 'Drops')
-                        .filter(drop => drop.position.distanceTo(bot.entity.position) < maxDist)
-                        .sort((dropA, dropB) => {
-        return (dropA.position.distanceTo(bot.entity.position) - dropB.position.distanceTo(bot.entity.position));
-    });
-    if(drops.length == 0) {
+    if (!drops) drops = Object.values(bot.entities)
+        .filter(entity => entity.kind === 'Drops')
+        .filter(drop => drop.position.distanceTo(bot.entity.position) < maxDist)
+        .sort((dropA, dropB) => {
+            return (dropA.position.distanceTo(bot.entity.position) - dropB.position.distanceTo(bot.entity.position));
+        });
+    if (drops.length == 0) {
         cb();
         return;
     }
@@ -161,19 +161,19 @@ function collectDrops(movement, drops, maxDist, cb) {
 }
 
 function harvest(blockName, movement, amount) {
-    if(amount <= 0) return bot.chat(`I collected all the ${blockName} you asked for`);
+    if (amount <= 0) return bot.chat(`I collected all the ${blockName} you asked for`);
 
-    const lookupBlock = mcData.blocksByName[blockName]; 
-    if(!lookupBlock) return bot.chat(`What's a ${blockName}?`);
+    const lookupBlock = mcData.blocksByName[blockName];
+    if (!lookupBlock) return bot.chat(`What's a ${blockName}?`);
     const id = lookupBlock.id;
-    
+
     let block = bot.findBlock({
         matching: id,
         point: bot.entity.position,
         maxDistance: 30
     });
 
-    if(!block) {
+    if (!block) {
         bot.chat(`Can't see any more ${blockName} nearby`);
         return;
     } else {
@@ -188,42 +188,42 @@ function harvest(blockName, movement, amount) {
     }
 }
 
-function itemByName (name) {
+function itemByName(name) {
     return bot.inventory.items().filter(item => item.name === name)[0];
 }
 
-function tossItem (name, amount, toPerson) {
+function tossItem(name, amount, toPerson) {
     bot.lookAt(bot.players[toPerson].entity.position, false, () => {
         amount = parseInt(amount, 10);
         const item = itemByName(name);
         if (!item) {
-          bot.chat(`I have no ${name}`);
+            bot.chat(`I have no ${name}`);
         } else if (amount) {
-          bot.toss(item.type, null, amount, checkIfTossed);
+            bot.toss(item.type, null, amount, checkIfTossed);
         } else {
-          bot.tossStack(item, checkIfTossed);
+            bot.tossStack(item, checkIfTossed);
         }
-      
-        function checkIfTossed (err) {
-          if (err) {
-            bot.chat(`might be a few short of what you wanted`);
-          } else {
-            bot.chat(`dropped the ${name}`);
-          }
+
+        function checkIfTossed(err) {
+            if (err) {
+                bot.chat(`might be a few short of what you wanted`);
+            } else {
+                bot.chat(`dropped the ${name}`);
+            }
         }
     });
-  }
+}
 
 function nearbyBlocks(maxDist = 30) {
     bot.chat('One sec, just counting blocks...');
     let nearbyBlocks = {};
-    for(let y = maxDist * -1; y <= maxDist; y++) {
-        for(let x = maxDist * -1; x <= maxDist; x++) {
-            for(let z = maxDist * -1; z <= maxDist; z++) {
+    for (let y = maxDist * -1; y <= maxDist; y++) {
+        for (let x = maxDist * -1; x <= maxDist; x++) {
+            for (let z = maxDist * -1; z <= maxDist; z++) {
                 let block = bot.blockAt(bot.entity.position.offset(x, y, z));
 
-                if(bot.blockAt(block.position.offset(0, 1, 0)).name != 'air') continue;
-                if(block.name == 'air' || block.name == 'cave_air') continue;
+                if (bot.blockAt(block.position.offset(0, 1, 0)).name != 'air') continue;
+                if (block.name == 'air' || block.name == 'cave_air') continue;
                 nearbyBlocks[block.name] = nearbyBlocks[block.name] ? nearbyBlocks[block.name] + 1 : 1;
             }
         }
@@ -231,54 +231,54 @@ function nearbyBlocks(maxDist = 30) {
     let names = Object.keys(nearbyBlocks);
     let amounts = Object.values(nearbyBlocks);
     return names.map((name, index) => {
-        return {name, amount: amounts[index]}
-    }).sort((x,y) => y.amount - x.amount).map(x => `${x.name}x${x.amount}`);
+        return { name, amount: amounts[index] }
+    }).sort((x, y) => y.amount - x.amount).map(x => `${x.name}x${x.amount}`);
 }
 
 function itemByNameIndex() {
     let itemsByName
     if (bot.supportFeature('itemsAreNotBlocks')) {
-      itemsByName = 'itemsByName'
+        itemsByName = 'itemsByName'
     } else if (bot.supportFeature('itemsAreAlsoBlocks')) {
-      itemsByName = 'blocksByName'
+        itemsByName = 'blocksByName'
     }
     return itemsByName;
 }
 
-function equipByName (name, output = true) {
+function equipByName(name, output = true) {
     const item = mcData[itemByNameIndex()][name];
-    if(!item) return bot.chat(`Equip a ${name}? What do you mean?`);
+    if (!item) return bot.chat(`Equip a ${name}? What do you mean?`);
 
     bot.equip(item.id, 'hand', (err) => {
         if (err) {
-            if(output) bot.chat(`unable to equip ${name}, ${err.message}`);
+            if (output) bot.chat(`unable to equip ${name}, ${err.message}`);
             return false;
         } else {
-            if(output) bot.chat(`ok, got ${name}`);
+            if (output) bot.chat(`ok, got ${name}`);
             return true;
         }
     });
 }
 
-function sayItems (items) {
-  const output = items.map(itemToString).join(', ')
-  if (output) {
-    bot.chat(output)
-  } else {
-    bot.chat('nothing')
-  }
+function sayItems(items) {
+    const output = items.map(itemToString).join(', ')
+    if (output) {
+        bot.chat(output)
+    } else {
+        bot.chat('nothing')
+    }
 }
 
-function itemToString (item) {
-  if (item) {
-    return `${item.name} x ${item.count}`
-  } else {
-    return '(nothing)'
-  }
+function itemToString(item) {
+    if (item) {
+        return `${item.name} x ${item.count}`
+    } else {
+        return '(nothing)'
+    }
 }
 
 function hole(messageParts, defaultMove) {
-    if(messageParts.length < 2) {
+    if (messageParts.length < 2) {
         bot.chat("How big though?");
         return;
     }
@@ -286,14 +286,14 @@ function hole(messageParts, defaultMove) {
     const size = messageParts[1].split('x');
     bot.chat(size[0] + " along x, " + size[1] + " along z and " + size[2] + " deep - got it!");
     let offsets = {
-        x: Math.floor(Number(size[0])/2),
-        z: Math.floor(Number(size[1])/2),
+        x: Math.floor(Number(size[0]) / 2),
+        z: Math.floor(Number(size[1]) / 2),
         y: Math.floor(Number(size[2]))
     }
     const positions = [];
-    for(let yO = 0; yO >= offsets.y * -1; yO--) {
-        for(let xO = offsets.x * -1; xO <= offsets.x; xO++) {
-            for(let zO = offsets.z * -1; zO <= offsets.z; zO++) {
+    for (let yO = 0; yO >= offsets.y * -1; yO--) {
+        for (let xO = offsets.x * -1; xO <= offsets.x; xO++) {
+            for (let zO = offsets.z * -1; zO <= offsets.z; zO++) {
                 positions.push(bot.entity.position.offset(xO, yO, zO));
             }
         }
@@ -303,21 +303,21 @@ function hole(messageParts, defaultMove) {
 }
 
 function digBlocksInOrder(positions, onComplete, defaultMove) {
-    if(positions == null || positions == undefined || positions.length == 0) return onComplete ? onComplete() : null;
-    
+    if (positions == null || positions == undefined || positions.length == 0) return onComplete ? onComplete() : null;
+
     const nextPosition = positions.shift();
-    goToTarget({position: nextPosition}, defaultMove, 5, () => {
+    goToTarget({ position: nextPosition }, defaultMove, 5, () => {
         digBlockAt(nextPosition, digBlocksInOrder.bind(this, positions, onComplete, defaultMove));
     });
 }
 
 function bestTool(block) {
     let tool = bot.pathfinder.bestHarvestTool(block);
-    if(tool) return tool;
+    if (tool) return tool;
 
-    if(block.name == 'air') return;
+    if (block.name == 'air') return;
     const materials = ['wooden', 'stone', 'gold', 'iron', 'diamond'];
-    switch(block.material) {
+    switch (block.material) {
         case 'dirt':
             return bestToolOfTypeInInv("shovel", materials);
         case 'wood':
@@ -338,10 +338,10 @@ function bestTool(block) {
 
 function bestToolOfTypeInInv(toolname, materials) {
     const tools = materials.map(x => x + '_' + toolname);
-    for(let i = tools.length - 1; i >= 0; i--) {
+    for (let i = tools.length - 1; i >= 0; i--) {
         const tool = tools[i];
         let matches = bot.inventory.items().filter(item => item.name === tool);
-        if(matches.length > 0) return matches[0];
+        if (matches.length > 0) return matches[0];
     }
     return null;
 }
@@ -350,12 +350,12 @@ function digBlockAt(position, onComplete) {
     var target = bot.blockAt(position);
     bot.lookAt(target.position);
     const tool = bestTool(target);
-    
+
     bot.equip(tool, 'hand', () => {
         if (target && bot.canDigBlock(target) && target.name != 'air') {
             bot.dig(target, onComplete)
         } else {
-            if(onComplete) onComplete();
+            if (onComplete) onComplete();
         }
     });
 }
@@ -363,10 +363,10 @@ function digBlockAt(position, onComplete) {
 function info(messageParts) {
     const playerName = messageParts[1];
     bot.chat("Info about " + playerName);
-    
+
     const player = bot.players[playerName];
     let info = null;
-    if(player) {
+    if (player) {
         info = "Pos: " + player.entity.position + "\r\n";
         info += "Vel: " + player.entity.velocity;
     } else {
@@ -398,12 +398,12 @@ function goToTarget(target, movement, dist = 0, cb) {
     bot.pathfinder.setGoal(goal);
 
     const callbackCheck = () => {
-        if(goal.isEnd(bot.entity.position.floored())) {
+        if (goal.isEnd(bot.entity.position.floored())) {
             cb();
         } else {
             setTimeout(callbackCheck.bind(this), 1000);
         }
     };
 
-    if(cb) callbackCheck();
+    if (cb) callbackCheck();
 }

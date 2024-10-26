@@ -8,6 +8,7 @@
 const createSwarm = (botNames, botConf, mineflayer) => {
     const initBot = (name) => {
         const bot = mineflayer.createBot({ ...botConf, username: name});
+        console.log(`Bot ${name} created`);
       
         bot.once('spawn', botConf.initCallback.bind(this, bot));
         return bot;

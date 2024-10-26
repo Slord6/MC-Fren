@@ -12,9 +12,11 @@
   "author": "Sam Lord",
   "license": "MIT",
   "dependencies": {
-    "mineflayer": "^2.24.0",
-    "mineflayer-armor-manager": "^1.1.0",
+    "minecraft-data": "^2.74.0",
+    "mineflayer": "^2.40.1",
+    "mineflayer-armor-manager": "^1.4.0",
     "mineflayer-blockfinder": "0.0.7",
-    "mineflayer-pathfinder": "^1.0.9"
+    "mineflayer-pathfinder": "^1.4.0",
+    "vec3": "^0.1.7"
   }
 }
