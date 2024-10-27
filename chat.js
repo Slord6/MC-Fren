@@ -6,6 +6,7 @@ const start = (waitTime) => {
     if(waitTime) messageWaitTime = waitTime;
     if(chatStack.length > 0) {
         let info = chatStack.shift();
+        console.log(`${info.bot.player.username} sending>>>`, info.message);
         info.bot.chat(info.message);
     }
     setTimeout(start.bind(this), messageWaitTime);

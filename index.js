@@ -7,10 +7,10 @@ const jobSelector = require('./individual').handleChat;
 const Utils = require('./utils');
 
 let botNames = [
-    'Annie',
-    'Baldwin',
-    'Claire',
-    'Dennis'
+    // 'Annie',
+    // 'Baldwin',
+    // 'Claire',
+    'QuailBotherer'
 ];
 const host = process.argv[2];
 const port = parseInt(process.argv[3], 10);
@@ -35,6 +35,7 @@ const botInit = (bot) => {
     console.log(`[${bot.username}] Loading plugins...`);
     bot.loadPlugins([require('mineflayer-pathfinder').pathfinder, require('mineflayer-armor-manager'), require('mineflayer-blockfinder')(mineflayer)]);
     console.log(bot.username, 'initalised');
+
     // Once we've spawn, it is safe to access mcData because we know the version
     const mcData = require('minecraft-data')(bot.version);
     prepFriendlyProtection(mcData);
@@ -43,10 +44,24 @@ const botInit = (bot) => {
     defaultMove.allowFreeMotion = true
 
     bot.on('chat', (username, message, x, y, z) => {
-        jobSelector(username, message, bot, masters, chat)
+        console.log("[Msg]", username, message);
+        try {
+            jobSelector(username, message, bot, masters, chat)
+        } catch (err) {
+            console.log(err);
+            chat.addChat(bot, `Can't, sorry`, username);
+        }
     });
     bot.on('whisper', (username, message) => {
-        jobSelector(username, message, bot, masters, chat, true)
+        try {
+            jobSelector(username, message, bot, masters, chat, true)
+        } catch (err) {
+            console.log(err);
+            chat.addChat(bot, `Can't, sorry`, username);
+        }
+    });
+    bot.on("end", (reason) => {
+        console.warn(`${bot.player.username} disconnected! (${reason})`);
     });
     const startTime = Date.now();
     bot.on('health', () => {
@@ -93,7 +108,7 @@ const prepFriendlyProtection = (mcData) => {
 const config = {
     host,
     port,
-    version: '1.16.4',
+    version: '1.20.1',
     initCallback: botInit
 };
 

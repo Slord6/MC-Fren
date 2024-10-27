@@ -42,11 +42,12 @@ const behaviours = {
 
     collectDrops: (bot, movement, maxDist, cb) => {
         drops = Object.values(bot.entities)
-                            .filter(entity => entity.kind === 'Drops')
+                            .filter(entity => entity.kind === 'Drops' || entity.kind === "UNKNOWN")
                             .filter(drop => drop.position.distanceTo(bot.entity.position) < maxDist)
                             .sort((dropA, dropB) => {
             return (dropA.position.distanceTo(bot.entity.position) - dropB.position.distanceTo(bot.entity.position));
         });
+        
         if(drops.length == 0) {
             cb();
             return;
@@ -264,15 +265,22 @@ const behaviours = {
     digBlockAt: (bot, position, onComplete) => {
         var target = bot.blockAt(position);
         bot.lookAt(target.position);
-        const tool = behaviours.bestTool(bot, target);
+        const tool = behaviours.bestTool(bot, target) ?? 0;
+        console.log(`${bot.player.username} using ${tool}`);
         
-        bot.equip(tool, 'hand', () => {
+        const doDig = () => {
             if (target && bot.canDigBlock(target) && target.name != 'air') {
                 bot.dig(target, true, onComplete)
             } else {
                 if(onComplete) onComplete();
             }
-        });
+        };
+
+        if(tool) {
+            bot.equip(tool, 'hand', doDig);
+        } else {
+            doDig();
+        }
     },
 
     info: (bot, messageParts) => {
@@ -287,7 +295,9 @@ const behaviours = {
             info = 'No-one is called ' + playerName;
         }
 
-        return "Info about " + playerName + "\r\n" + info;
+        const text = "Info about " + playerName + "\r\n" + info;
+        console.log(text);
+        return text.replace("\r\n", " ");
     },
 
     stop: (bot) => {
@@ -422,9 +432,9 @@ const behaviours = {
 
     craft: (bot, itemName, mcData, amount = 1, craftingTable = null, craftComplete) => {
         let recipes = behaviours.getRecipe(bot, itemName, amount, mcData, craftingTable);
-        if(!recipes || recipes.length === 0) return craftComplete(`No recipes for ${itemName}`);
+        if(!recipes || recipes.length === 0) return craftComplete(`I don't know the recipe for ${itemName}`);
         if(recipes[0].inShape) recipes[0].inShape = recipes[0].inShape.reverse();
-        bot.craft(recipes[0], amount, craftingTable, craftComplete);
+        bot.craft(recipes[0], amount, craftingTable).then(craftComplete);
     },
 
     getRecipe: (bot, itemName, amount, mcData, craftingTable = null) => {
