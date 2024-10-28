@@ -28,8 +28,24 @@ const autoLogin = async (bot) => {
     console.log("Auto logging in...");
     chat.addChat(bot, `/register ${password} ${password}`);
     chat.addChat(bot, `/login ${password}`);
-    password = null;
 };
+
+const newBots = (names) => {
+    const newBots = createSwarm(names, config, mineflayer);
+    console.log(`Created ${names} (${newBots.map(nb => nb.username)}). Waiting for spawns..`);
+
+    let counter = 0;
+    newBots.forEach(bot => {
+        bot.once('spawn', () => {
+            counter++;
+            console.log("Spawned", bot.username, `(${counter}/${newBots.length})`);
+            if(counter === newBots.length) {
+                newBots.forEach(b => swarm.push(b));
+                console.log("All bots now:", swarm.map(b => b.username));
+            }
+        });
+    });
+}
 
 const botInit = (bot) => {
     console.log(`[${bot.username}] Loading plugins...`);
@@ -38,23 +54,24 @@ const botInit = (bot) => {
 
     // Once we've spawn, it is safe to access mcData because we know the version
     const mcData = require('minecraft-data')(bot.version);
-    prepFriendlyProtection(mcData);
+    prepFriendlyProtection(mcData, swarm);
 
     const defaultMove = new Movements(bot, mcData);
     defaultMove.allowFreeMotion = true
 
     bot.on('chat', (username, message, x, y, z) => {
-        console.log("[Msg]", username, message);
+        console.log(`[Msg>${bot.username}]`, username, message);
         try {
-            jobSelector(username, message, bot, masters, chat)
+            jobSelector(username, message, bot, masters, chat, false, newBots)
         } catch (err) {
             console.log(err);
             chat.addChat(bot, `Can't, sorry`, username);
         }
     });
     bot.on('whisper', (username, message) => {
+        console.log(`[Whisper>${bot.username}]`, username, message);
         try {
-            jobSelector(username, message, bot, masters, chat, true)
+            jobSelector(username, message, bot, masters, chat, true, newBots)
         } catch (err) {
             console.log(err);
             chat.addChat(bot, `Can't, sorry`, username);
@@ -79,7 +96,7 @@ const botInit = (bot) => {
 };;
 
 let haveSetupProtection = false;
-const prepFriendlyProtection = (mcData) => {
+const prepFriendlyProtection = (mcData, swarm) => {
     if (haveSetupProtection) return;
     swarm[swarm.length - 1].once('spawn', () => {
         swarm.forEach(bot => {

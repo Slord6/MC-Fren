@@ -3,28 +3,29 @@ const { Vec3 } = require('vec3');
 const Movements = require('mineflayer-pathfinder').Movements
 
 const movementCallback = (returnAddress, bot, chat, target, successful) => {
-    const announcement = successful ? `got there` : `can't get there`;
+    const announcement = successful ? `:)` : `I can't get there`;
     chat.addChat(bot, announcement, returnAddress);
 }
 
 let stopLearn = null;
-const handleChat = (username, message, bot, masters, chat, isWhisper = false) => {
-    console.log(username, ": ", message);
+const handleChat = (username, message, bot, masters, chat, isWhisper = false, createBotCallback = null) => {
     if (username === bot.username || !masters.includes(username)) return;
-
+    
     // insert bot name for whispers, if not present, for easier parsing
-    if (isWhisper && !message.startsWith(bot.username)) message = bot.username + ' ' + message;
+    if (!message.startsWith(bot.username)) message = bot.username + ' ' + message;
     const returnAddress = isWhisper ? username : null; // used for direct response or global chat depending on how we were spoken to
-
+    
     const messageParts = message.split(' ');
     let messageFor = messageParts.shift();
     if (messageFor != bot.username && messageFor != 'swarm') return;
+    console.log("Command:", username, messageFor, messageParts);
 
     let target = bot.players[username].entity;
     const mcData = require('minecraft-data')(bot.version)
     const defaultMove = new Movements(bot, mcData);
     switch (messageParts[0]) {
         case 'come':
+            chat.addChat(bot, 'coming', returnAddress);
             Utils.goToTarget(bot, target, defaultMove, 0, (success) => {
                 movementCallback(returnAddress, bot, chat, target, success);
             });
@@ -238,8 +239,21 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false) =>
                 });
             });
             break;
+        case 'new':
+            if (!createBotCallback) {
+                console.warn("Tried to create new bot(s) but no callback provided");
+                chat.addChat(bot, `Can't right now`, returnAddress);
+                break;
+            }
+            messageParts.shift();
+            // Allow for " ", "," and ", " separated names
+            const names = messageParts.reduce((prev, curr) => {
+                return [...prev, ...curr.split(",").map(n => n.trim())];
+            }, []);
+            createBotCallback(names);
+            break;
         default:
-            chat.addChat(bot, 'I don\'t understand', returnAddress);
+            chat.addChat(bot, 'What do you mean?', returnAddress);
             return;
     }
 };
