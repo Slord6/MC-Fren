@@ -288,17 +288,17 @@ const behaviours = {
         const playerName = messageParts[1];
         
         const player = bot.players[playerName];
+        console.log(`${bot.username} getting info on ${playerName} (Found: ${!!player})`);
         let info = null;
         if(player) {
-            info = "Pos: " + player.entity.position + "\r\n";
-            info += "Vel: " + player.entity.velocity;
+            info = `Pos ${player.entity.position}, Vel ${player.entity.velocity}`;
         } else {
             info = 'No-one is called ' + playerName;
         }
 
-        const text = "Info about " + playerName + "\r\n" + info;
-        console.log(text);
-        return text.replace("\r\n", " ");
+        const text = `${playerName}: ${info}`;
+        console.log("Info:", text);
+        return text;
     },
 
     stop: (bot) => {

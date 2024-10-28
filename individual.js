@@ -43,6 +43,7 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false, cr
             Utils.follow(bot, target, defaultMove);
             chat.addChat(bot, 'ok', returnAddress);
             break;
+        case 'stay':
         case 'stop':
             Utils.stop(bot);
             chat.addChat(bot, 'ok', returnAddress);
@@ -117,6 +118,7 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false, cr
                 } else {
                     let player = bot.players[messageParts[1]]
                     if (player) {
+                        chat.addChat(bot, "Ok, I'll find 'em", target);
                         target = player.entity;
                     } else {
                         if (messageParts[1] == 'home') {
@@ -159,6 +161,7 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false, cr
             break;
         case 'craft':
             let itemName = messageParts[1];
+            let friendlyItemName = itemName.split("_").join(" ");
             let amount = messageParts.length > 2 ? parseInt(messageParts[2]) : 1;
             let craftingTableBlockInfo = Utils.nameToBlock('crafting_table', mcData);
 
@@ -171,10 +174,10 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false, cr
                 if (!arrivedSuccessfully && craftingTable != null) return chat.addChat(bot, `Couldn't get to the crafting table`, returnAddress);
                 Utils.craft(bot, itemName, mcData, amount, craftingTable, (err) => {
                     if (err) {
-                        chat.addChat(bot, `Couldn't make a ${itemName}`, returnAddress);
+                        chat.addChat(bot, `Couldn't make a ${friendlyItemName}`, returnAddress);
                         console.log(err);
                     } else {
-                        chat.addChat(bot, `Made the ${itemName}`, returnAddress);
+                        chat.addChat(bot, `Made the ${friendlyItemName}${amount > 1 && !friendlyItemName.endsWith("s") ? "s" : ""}`, returnAddress);
                     }
                 });
             });
