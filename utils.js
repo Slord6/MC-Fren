@@ -58,7 +58,7 @@ const behaviours = {
     },
 
     harvest: (bot, blockName, movement, amount, mcData, cb) => {
-        if(amount <= 0) return cb ? cb(`I collected all the ${blockName} you asked for`) : null;
+        if(amount <= 0) return cb ? cb(`I collected all the ${blockName.split("_").join(" ")} you asked for`) : null;
 
         const lookupBlock = behaviours.nameToBlock(blockName, mcData); 
         if(!lookupBlock) return cb ? cb(`What's a ${blockName}?`) : null;
@@ -71,10 +71,11 @@ const behaviours = {
         })[0];
 
         if(!block) {
-            return cb ? cb(`Can't see any more ${blockName} nearby`) : null;
+            return cb ? cb(`Can't see any more ${blockName.split("_").join(" ")}s nearby`) : null;
         } else {
             bot.lookAt(block.position);
             behaviours.goToTarget(bot, block, movement, 1, () => {
+                bot.lookAt(block.position);
                 behaviours.digBlockAt(bot, block.position, () => {
                     behaviours.collectDrops(bot, movement, 5, () => {
                         setImmediate(behaviours.harvest.bind(this, bot, blockName, movement, --amount, mcData, cb));
@@ -266,18 +267,18 @@ const behaviours = {
         var target = bot.blockAt(position);
         bot.lookAt(target.position);
         const tool = behaviours.bestTool(bot, target) ?? 0;
-        console.log(`${bot.player.username} using ${tool}`);
         
         const doDig = () => {
             if (target && bot.canDigBlock(target) && target.name != 'air') {
-                bot.dig(target, true, onComplete)
+                bot.dig(target, true).then(onComplete)
             } else {
+                console.log(`${bot.username} couldn't dig`, target.name);
                 if(onComplete) onComplete();
             }
         };
 
         if(tool) {
-            bot.equip(tool, 'hand', doDig);
+            bot.equip(tool, 'hand').then(doDig);
         } else {
             doDig();
         }
