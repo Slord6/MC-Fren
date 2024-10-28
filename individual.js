@@ -10,11 +10,11 @@ const movementCallback = (returnAddress, bot, chat, target, successful) => {
 let stopLearn = null;
 const handleChat = (username, message, bot, masters, chat, isWhisper = false, createBotCallback = null) => {
     if (username === bot.username || !masters.includes(username)) return;
-    
+
     // insert bot name for whispers, if not present, for easier parsing
     if (!message.startsWith(bot.username)) message = bot.username + ' ' + message;
     const returnAddress = isWhisper ? username : null; // used for direct response or global chat depending on how we were spoken to
-    
+
     const messageParts = message.split(' ');
     let messageFor = messageParts.shift();
     if (messageFor != bot.username && messageFor != 'swarm') return;
@@ -42,6 +42,22 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false, cr
             }
             Utils.follow(bot, target, defaultMove);
             chat.addChat(bot, 'ok', returnAddress);
+            break;
+        case 'avoid':
+            if (messageParts.length > 1) {
+                let player = bot.players[messageParts[1]]
+                if (player) {
+                    target = player.entity;
+                } else {
+                    chat.addChat(bot, "No-one is called " + messageParts[1], returnAddress);
+                    return;
+                }
+            }
+            Utils.avoid(bot, target, defaultMove);
+            chat.addChat(bot, 'ok', returnAddress);
+            break;
+        case 'shift':
+            Utils.shift(bot, defaultMove);
             break;
         case 'stay':
         case 'stop':

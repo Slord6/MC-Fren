@@ -310,6 +310,19 @@ const behaviours = {
         bot.pathfinder.setGoal(new GoalFollow(target, 3), true);
     },
 
+    avoid: (bot, target, movement) => {
+        bot.pathfinder.setMovements(movement);
+        bot.pathfinder.setGoal(new GoalInvert(new GoalFollow(target, 20)), true);
+    },
+
+    shift: (bot, movement) => {
+        bot.pathfinder.setMovements(movement);
+        const offsetX = (Math.random() - 0.5) * 5;
+        const offsetZ = (Math.random() - 0.5) * 5;
+        const pos = bot.entity.position;
+        bot.pathfinder.setGoal(new GoalXZ(pos.x + offsetX, pos.z + offsetZ), true);
+    },
+
     goToTarget: (bot, target, movement, dist = 0, cb) => {
         if (!target) {
             if(cb) cb(false);
