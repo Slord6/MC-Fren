@@ -4,8 +4,9 @@ const { GoalNear, GoalBlock, GoalXZ, GoalY, GoalInvert, GoalFollow } = require('
 const { createSwarm } = require('./swarm');
 const chat = require('./chat');
 const jobSelector = require('./individual').handleChat;
-const Utils = require('./utils');
+const {Behaviours} = require('./dist/utils');
 
+const utils = new Behaviours();
 let botNames = [
     // 'Annie',
     // 'Baldwin',
@@ -83,7 +84,7 @@ const botInit = (bot) => {
     const startTime = Date.now();
     bot.on('health', () => {
         if (Date.now() - startTime < 500) return;
-        Utils.attackNearestMob(bot, defaultMove)
+        utils.attackNearestMob(bot, defaultMove)
     });
     bot.on('kicked', (reason) => console.log("kicked", reason));
     bot.on('error', console.log);
@@ -105,7 +106,7 @@ const prepFriendlyProtection = (mcData, swarm) => {
 
             swarm.forEach(other => {
                 if (other.username != bot.username) {
-                    other.on('health', () => Utils.protectFriendly(bot, other, defaultMove));
+                    other.on('health', () => utils.protectFriendly(bot, other, defaultMove));
                 }
             });
             masters.forEach(m => {
@@ -114,7 +115,7 @@ const prepFriendlyProtection = (mcData, swarm) => {
                     console.warn("No player found for auto protect");
                 } else {
                     while (!player.entity) { }
-                    player.entity.on('health', () => Utils.protectFriendly(bot, player, defaultMove));
+                    player.entity.on('health', () => utils.protectFriendly(bot, player, defaultMove));
                 }
             });
         });

@@ -1,6 +1,8 @@
-const Utils = require('./utils');
 const { Vec3 } = require('vec3');
 const Movements = require('mineflayer-pathfinder').Movements
+const { Behaviours } = require('./dist/utils');
+
+const utils = new Behaviours();
 
 const movementCallback = (returnAddress, bot, chat, target, successful) => {
     const announcement = successful ? `:)` : `I can't get there`;
@@ -26,7 +28,7 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false, cr
     switch (messageParts[0]) {
         case 'come':
             chat.addChat(bot, 'coming', returnAddress);
-            Utils.goToTarget(bot, target, defaultMove, 0, (success) => {
+            utils.goToTarget(bot, target, defaultMove, 0, (success) => {
                 movementCallback(returnAddress, bot, chat, target, success);
             });
             break;
@@ -40,7 +42,7 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false, cr
                     return;
                 }
             }
-            Utils.follow(bot, target, defaultMove);
+            utils.follow(bot, target, defaultMove);
             chat.addChat(bot, 'ok', returnAddress);
             break;
         case 'avoid':
@@ -53,46 +55,47 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false, cr
                     return;
                 }
             }
-            Utils.avoid(bot, target, defaultMove);
+            utils.avoid(bot, target, defaultMove);
             chat.addChat(bot, 'ok', returnAddress);
             break;
         case 'shift':
-            Utils.shift(bot, defaultMove);
+            utils.shift(bot, defaultMove);
             break;
         case 'stay':
         case 'stop':
-            Utils.stop(bot);
+            utils.stop(bot);
             chat.addChat(bot, 'ok', returnAddress);
             break;
         case 'info':
-            chat.addChat(bot, Utils.info(bot, messageParts), returnAddress);
+            chat.addChat(bot, utils.info(bot, messageParts), returnAddress);
             break;
         case 'hole':
-            Utils.hole(bot, messageParts, defaultMove, (msg) => {
+            utils.hole(bot, messageParts, defaultMove, (msg) => {
                 chat.addChat(bot, msg, returnAddress);
             });
             break;
         case 'nearby':
-            chat.addChat(bot, Utils.nearbyBlocks(bot).join(', '), returnAddress);
+            chat.addChat(bot, utils.nearbyBlocks(bot).join(', '), returnAddress);
             break;
         case 'inventory':
-            chat.addChat(bot, Utils.inventoryAsString(bot, bot.inventory.items()), returnAddress);
+            chat.addChat(bot, utils.inventoryAsString(bot, bot.inventory.items()), returnAddress);
             break;
         case 'equip':
             if (messageParts.length == 1) {
                 chat.addChat(bot, "equip what?", returnAddress);
                 return;
             }
-            Utils.equipByNameDescriptive(bot, messageParts[1], mcData, (msg) => {
+            utils.equipByNameDescriptive(bot, messageParts[1], mcData, (msg) => {
                 chat.addChat(bot, msg, returnAddress);
             });
             break;
         case 'drop':
+        case 'gimme':
             if (messageParts.length < 3) {
                 chat.addChat(bot, "drop how much of what?", returnAddress);
                 return;
             }
-            Utils.tossItem(bot, messageParts[2], messageParts[1], username, (msg) => {
+            utils.tossItem(bot, messageParts[2], messageParts[1], username, (msg) => {
                 chat.addChat(bot, msg, returnAddress);
             });;
             break;
@@ -101,22 +104,22 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false, cr
                 chat.addChat(bot, "Harvest how much of what!?", returnAddress);
                 return;
             }
-            Utils.harvest(bot, messageParts[2], defaultMove, parseInt(messageParts[1], 10), mcData, (msg) => {
+            utils.harvest(bot, messageParts[2], defaultMove, parseInt(messageParts[1], 10), mcData, (msg) => {
                 chat.addChat(bot, msg, returnAddress);
             });
             break;
         case 'collect':
-            Utils.collectDrops(bot, defaultMove, 30, () => chat.addChat(bot, "Everything's collected", returnAddress));
+            utils.collectDrops(bot, defaultMove, 30, () => chat.addChat(bot, "Everything's collected", returnAddress));
             break;
         case 'hunt':
             chat.addChat(bot, "I'm off hunting", returnAddress);
-            Utils.hunt(bot, defaultMove, parseInt(messageParts[1], 30), 30, () => {
+            utils.hunt(bot, defaultMove, parseInt(messageParts[1], 30), 30, () => {
                 chat.addChat(bot, 'finished hunting', returnAddress);
             });
             break;
         case 'protect':
             chat.addChat(bot, "I'm on it", returnAddress);
-            Utils.attackNearestMob(bot, defaultMove, (msg) => {
+            utils.attackNearestMob(bot, defaultMove, (msg) => {
                 chat.addChat(bot, msg, returnAddress);
             });
             break;
@@ -128,7 +131,7 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false, cr
                     let y = parseInt(messageParts[2], 10);
                     let z = parseInt(messageParts[3], 10);
                     chat.addChat(bot, "Ok, on my way", target);
-                    Utils.goToTarget(bot, { position: { x, y, z } }, defaultMove, 0, (success) => {
+                    utils.goToTarget(bot, { position: { x, y, z } }, defaultMove, 0, (success) => {
                         movementCallback(returnAddress, bot, chat, target, success);
                     });
                 } else {
@@ -138,7 +141,7 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false, cr
                         target = player.entity;
                     } else {
                         if (messageParts[1] == 'home') {
-                            let homePos = Utils.getHome(bot);
+                            let homePos = utils.getHome(bot);
                             if (homePos) {
                                 target = { position: homePos };
                             } else {
@@ -150,7 +153,7 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false, cr
                             return;
                         }
                     }
-                    Utils.goToTarget(bot, target, defaultMove, 1, (success) => {
+                    utils.goToTarget(bot, target, defaultMove, 1, (success) => {
                         movementCallback(returnAddress, bot, chat, target, success);
                     });
                 }
@@ -163,32 +166,32 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false, cr
                 let y = parseInt(messageParts[2], 10);
                 let z = parseInt(messageParts[3], 10);
                 let targetPos = { x, y, z };
-                Utils.goToTarget(bot, { position: bot.entity.position.add(targetPos) }, defaultMove, 0, (success) => {
+                utils.goToTarget(bot, { position: bot.entity.position.add(targetPos) }, defaultMove, 0, (success) => {
                     movementCallback(returnAddress, bot, chat, target, success);
                 });
             };
             move(messageParts);
             break;
         case 'learn':
-            Utils.learn(bot, target, console.log);
+            utils.learn(bot, target, console.log);
             break;
         case 'recite':
-            Utils.finishLearn(bot);
+            utils.finishLearn(bot);
             break;
         case 'craft':
             let itemName = messageParts[1];
             let friendlyItemName = itemName.split("_").join(" ");
             let amount = messageParts.length > 2 ? parseInt(messageParts[2]) : 1;
-            let craftingTableBlockInfo = Utils.nameToBlock('crafting_table', mcData);
+            let craftingTableBlockInfo = utils.nameToBlock('crafting_table', mcData);
 
             let craftingTable = bot.findBlockSync({
                 matching: craftingTableBlockInfo.id,
                 point: bot.entity.position
             })[0];
 
-            Utils.goToTarget(bot, craftingTable, defaultMove, 2, (arrivedSuccessfully) => {
+            utils.goToTarget(bot, craftingTable, defaultMove, 2, (arrivedSuccessfully) => {
                 if (!arrivedSuccessfully && craftingTable != null) return chat.addChat(bot, `Couldn't get to the crafting table`, returnAddress);
-                Utils.craft(bot, itemName, mcData, amount, craftingTable, (err) => {
+                utils.craft(bot, itemName, mcData, amount, craftingTable, (err) => {
                     if (err) {
                         chat.addChat(bot, `Couldn't make a ${friendlyItemName}`, returnAddress);
                         console.log(err);
@@ -199,7 +202,7 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false, cr
             });
             break;
         case 'sethome':
-            Utils.setHome(bot, bot.entity.position);
+            utils.setHome(bot, bot.entity.position);
             chat.addChat(bot, "Homely!", returnAddress);
             break;
         case 'where':
@@ -219,15 +222,10 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false, cr
             bot.deactivateItem();
             break;
         case 'empty':
-            Utils.emptyNearestChest(bot, 7, () => { chat.addChat(bot, 'Emptied the chest', returnAddress) });
+            utils.emptyNearestChest(bot, 7, () => { chat.addChat(bot, 'Emptied the chest', returnAddress) });
             break;
         case 'fill':
-            const fillUpChest = Utils.nearbyBlocksRawMatching(bot, 7, (block) => block.name == 'chest')[0];
-            bot.lookAt(fillUpChest.position, true, () => {
-                Utils.fillChest(bot, fillUpChest, () => {
-                    chat.addChat(bot, 'Filled the chest', returnAddress);
-                });
-            });
+            utils.emptyNearestChest(bot, 7, () => { chat.addChat(bot, 'Filled the chest', returnAddress), true });
             break;
         case 'place':
             // place, block, x, y, z
@@ -235,8 +233,8 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false, cr
             if (messageParts.length !== 5) return chat.addChat(bot, 'place what block where?!', returnAddress);
             const position = new Vec3(Number(messageParts[2]), Number(messageParts[3]), Number(messageParts[4]));
             const blockToPlace = messageParts[1];
-            Utils.getAdjacentTo(bot, { position }, defaultMove, () => {
-                Utils.placeBlockAt(bot, position, blockToPlace, mcData, () => {
+            utils.getAdjacentTo(bot, { position }, defaultMove, () => {
+                utils.placeBlockAt(bot, position, blockToPlace, mcData, () => {
                     chat.addChat(bot, `Placed the ${blockToPlace}`, returnAddress);
                 });
             });
@@ -249,10 +247,10 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false, cr
             const topRight = new Vec3(Number(messageParts[4]), Number(messageParts[5]), Number(messageParts[6]));
             const portalBlockName = messageParts.length === 8 ? messageParts[7] : 'obsidian';
             //return console.log(portalBlockName, messageParts, messageParts.length);
-            const portalBlock = Utils.nameToBlock(portalBlockName, mcData);
+            const portalBlock = utils.nameToBlock(portalBlockName, mcData);
             defaultMove.blocksCantBreak.add(portalBlock.id);
-            Utils.goToTarget(bot, { position: bottomLeft }, defaultMove, 5, () => {
-                Utils.buildPortal(bot, bottomLeft, topRight, mcData, defaultMove, portalBlockName, () => {
+            utils.goToTarget(bot, { position: bottomLeft }, defaultMove, 5, () => {
+                utils.buildPortal(bot, bottomLeft, topRight, mcData, defaultMove, portalBlockName, () => {
                     chat.addChat(bot, `Built the ${portalBlockName} portal`, returnAddress);
                     defaultMove.blocksCantBreak.delete(portalBlock.id);
                 });
@@ -270,6 +268,18 @@ const handleChat = (username, message, bot, masters, chat, isWhisper = false, cr
                 return [...prev, ...curr.split(",").map(n => n.trim())];
             }, []);
             createBotCallback(names);
+            break;
+        case 'sleep':
+            utils.sleep(bot, (msg) => {
+                chat.addChat(bot, msg, returnAddress);
+            });
+            break;
+        case 'worldspawn':
+            chat.addChat(bot, `Heading to spawn`, returnAddress);
+            utils.goToTarget(bot, { position: bot.spawnPoint }, defaultMove, 2, returnAddress);
+            break;
+        case 'torch':
+            chat.addChat(bot, `Torch? ${utils.shouldPlaceTorch(bot)}`, returnAddress);
             break;
         default:
             chat.addChat(bot, 'What do you mean?', returnAddress);
