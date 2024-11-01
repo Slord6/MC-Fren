@@ -3,6 +3,7 @@ import { Bot, Chest } from "mineflayer";
 import { Movements } from "mineflayer-pathfinder";
 import { Block } from 'prismarine-block'
 import PrismarineEntity from 'prismarine-entity';
+import {Item as PrismarineItem} from 'prismarine-item';
 import { Vec3 } from "vec3";
 
 const Vec3Obj = require('vec3').Vec3;
@@ -191,12 +192,12 @@ export class Behaviours {
         bot.equip(item.id, 'hand');
     }
 
-    public inventoryAsString(bot: Bot, items: Item[]) {
-        const output = items.map(this.itemToString).join(', ')
+    public inventoryAsString(bot: Bot) {
+        const output = bot.inventory.items().map(this.itemToString).join(', ')
         return output ? output : 'nothing';
     }
 
-    public itemToString(item: Item): string {
+    public itemToString(item: PrismarineItem): string {
         if (item) {
             return `${item.name} x ${item.count}`
         } else {
@@ -328,7 +329,7 @@ export class Behaviours {
         bot.pathfinder.setGoal(new GoalXZ(pos.x + offsetX, pos.z + offsetZ), true);
     }
 
-    public goToTarget(bot: Bot, target: { position: Vec3 }, movement: Movements, dist: number, cb: (success: boolean) => void) {
+    public goToTarget(bot: Bot, target: { position: {x: number, y: number, z: number} }, movement: Movements, dist: number, cb: (success: boolean) => void) {
         if (!target) {
             if (cb) cb(false);
             return;
@@ -412,14 +413,14 @@ export class Behaviours {
         }
     }
 
-    public craft(bot: Bot, itemName: string, mcData: IndexedData, amount = 1, craftingTable = undefined, craftComplete: null | ((msg: string | void) => void) = null) {
+    public craft(bot: Bot, itemName: string, mcData: IndexedData, amount = 1, craftingTable: Block | null = null, craftComplete: null | ((msg: string | void) => void) = null) {
         let recipes = this.getRecipe(bot, itemName, amount, mcData, craftingTable);
         if (!recipes || recipes.length === 0) {
             if (craftComplete) craftComplete(`I don't know the recipe for ${itemName}`);
             return;
         }
         if (recipes[0].inShape) recipes[0].inShape = recipes[0].inShape.reverse();
-        bot.craft(recipes[0], amount, craftingTable).then(craftComplete ? craftComplete : () => { });
+        bot.craft(recipes[0], amount, craftingTable ? craftingTable : undefined).then(craftComplete ? craftComplete : () => { });
     }
 
     public getRecipe(bot: Bot, itemName: string, amount: number, mcData: IndexedData, craftingTable: Block | null = null) {
