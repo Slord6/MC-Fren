@@ -6,7 +6,7 @@
 - git clone
 - npm i
 - npx tsc
-- node .\index.js \<server\> \<port\> \<password> \<master\>
+- node .\dist\index.js \<server\> \<port\> \<password> \<master\>
 
 `master` is the name of the account you want to control the bots from. `password` is the password used in `/login` and `/register` commands to join most 'cracked' servers (ie. the ones without online mode on)
 example:
