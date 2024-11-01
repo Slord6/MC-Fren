@@ -4,6 +4,7 @@ import { Behaviours } from "./utils";
 import { Movements } from "mineflayer-pathfinder";
 import { IndexedData } from "minecraft-data";
 import { Vec3 } from "vec3";
+import { RecipeTree } from "./RecipeTree";
 
 export class Individual {
     private utils: Behaviours;
@@ -197,7 +198,7 @@ export class Individual {
                     point: this.bot.entity.position
                 })[0];
 
-                this.utils.goToTarget(this.bot, {position: craftingTablePos}, this.defaultMove, 2, (arrivedSuccessfully) => {
+                this.utils.goToTarget(this.bot, { position: craftingTablePos }, this.defaultMove, 2, (arrivedSuccessfully) => {
                     if (!arrivedSuccessfully && craftingTablePos != null) return this.chat.addChat(this.bot, `Couldn't get to the crafting table`, returnAddress);
                     this.utils.craft(this.bot, itemName, this.mcData, amount, bot.blockAt(craftingTablePos), (err) => {
                         if (err) {
@@ -289,6 +290,22 @@ export class Individual {
                 break;
             case 'torch':
                 this.chat.addChat(this.bot, `Torch? ${this.utils.shouldPlaceTorch(bot)}`, returnAddress);
+                break;
+            case 'crafttree':
+                const doTree = () => {
+                    const itemName = messageParts[1];
+                    const amount = messageParts.length > 2 ? parseInt(messageParts[2]) : 1;
+
+                    const craftingTableBlockInfo = this.utils.nameToBlock('crafting_table', this.mcData);
+                    const craftingTablePos = this.bot.findBlocks({
+                        matching: craftingTableBlockInfo.id,
+                        point: this.bot.entity.position
+                    })[0];
+                    const craftingTable = bot.blockAt(craftingTablePos);
+                    const tree = new RecipeTree(bot, itemName, amount, this.mcData, craftingTable);
+                    tree.print();
+                };
+                doTree();
                 break;
             default:
                 this.chat.addChat(this.bot, 'What do you mean?', returnAddress);
