@@ -5,6 +5,8 @@ import { Movements } from "mineflayer-pathfinder";
 import { IndexedData } from "minecraft-data";
 import { Vec3 } from "vec3";
 import { RecipeTree } from "./RecipeTree";
+import { CraftTask } from "./CraftTask/CraftTask";
+import { BotTask } from "./CraftTask/BotTask";
 
 export class Individual {
     private utils: Behaviours;
@@ -12,6 +14,9 @@ export class Individual {
     private bot: Bot;
     private defaultMove: Movements;
     private mcData: IndexedData;
+
+    private task: BotTask<any> | null = null;
+    private taskRunner: NodeJS.Timeout | null = null;
 
     constructor(bot: Bot, chat: ChatBuffer) {
         this.utils = new Behaviours();
@@ -112,6 +117,7 @@ export class Individual {
                 break;
             case 'stay':
             case 'stop':
+                this.clearActiveTask();
                 this.utils.stop(bot);
                 this.chat.addChat(this.bot, 'ok', returnAddress);
                 break;
@@ -292,24 +298,52 @@ export class Individual {
                 this.chat.addChat(this.bot, `Torch? ${this.utils.shouldPlaceTorch(bot)}`, returnAddress);
                 break;
             case 'crafttree':
-                const doTree = () => {
-                    const itemName = messageParts[1];
-                    const amount = messageParts.length > 2 ? parseInt(messageParts[2]) : 1;
-
-                    const craftingTableBlockInfo = this.utils.nameToBlock('crafting_table', this.mcData);
-                    const craftingTablePos = this.bot.findBlocks({
-                        matching: craftingTableBlockInfo.id,
-                        point: this.bot.entity.position
-                    })[0];
-                    const craftingTable = bot.blockAt(craftingTablePos);
-                    const tree = new RecipeTree(bot, itemName, amount, this.mcData, craftingTable);
-                    tree.print();
-                };
-                doTree();
+                const rootName = messageParts[1];
+                const totalAmount = messageParts.length > 2 ? parseInt(messageParts[2]) : 1;
+                const craftTask = new CraftTask(bot, this.utils, rootName, totalAmount, this.mcData);
+                this.chat.addChat(this.bot, `On it`, returnAddress);
+                this.runTask(craftTask).then(() => {
+                    this.chat.addChat(this.bot, `Managed to craft that ${messageParts[0]}`, returnAddress);
+                });
                 break;
             default:
                 this.chat.addChat(this.bot, 'What do you mean?', returnAddress);
                 return;
         }
-    };
+    }
+
+    private runTask<T>(task: BotTask<T>): Promise<T> {
+        const resolve = () => {
+            return task.result();
+        }
+        const reject = (reason: any) => reason;
+        if (this.taskRunner) {
+            this.clearActiveTask();
+            this.utils.stop(this.bot);
+        }
+
+        this.taskRunner = setInterval(() => {
+            if (task.isComplete()) {
+                resolve();
+                this.clearActiveTask();
+            }
+            try {
+                task.tick();
+            } catch (err) {
+                console.error("Task failed, aborting", err);
+                this.clearActiveTask();
+            }
+
+        }, 2000);
+
+        // TODO sort out this promise, esp the catch case above
+        return new Promise(resolve);
+    }
+
+    private clearActiveTask() {
+        if (this.taskRunner) {
+            clearInterval(this.taskRunner);
+        }
+        this.task = null;
+    }
 }

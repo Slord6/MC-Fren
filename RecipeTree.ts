@@ -1,6 +1,7 @@
 import { Bot } from "mineflayer";
 import { Behaviours } from "./utils";
 import { IndexedData } from "minecraft-data";
+import { Item } from "prismarine-item";
 import { Block } from "prismarine-block";
 import { Recipe, RecipeItem } from "prismarine-recipe";
 
@@ -26,6 +27,9 @@ export class RecipeTree {
     }
 
     public refresh() {
+        if(this.mcData.itemsByName[this.itemName] === undefined) {
+            throw Error(`Invalid item: ${this.itemName}`);
+        }
         const utils = new Behaviours();
         this.allRequiredIds = [];
         this.root = {
@@ -72,18 +76,53 @@ export class RecipeTree {
         return false;
     }
 
-    private build(node: RecipeTreeNode, utils: Behaviours) {
-        console.log("---------------");
-        console.log("Building", this.mcData.items[node.id].name);
+    /**
+     * Given a set of items, returnt he names of the blocks in
+     * the tree that have not yet been collected 
+     * @param obtained 
+     * @returns
+     */
+    public incomplete(obtained: Item[]): string[] {
+        //TODO: Handle recipes where not checking quantites breaks
+        //E.g oak_fence (the planks get used for sticks and then we don't have enough planks)
+        // (I think)
+        const obtainedIds = obtained.map(i => this.mcData.itemsByName[i.name].id);
+        const notCollected = (node: RecipeTreeNode) => {
+            return !obtainedIds.includes(node.id);
+        };
 
+        return this.nodesMatching(this.root, notCollected).filter(n => n !== null).map(node => {
+            return this.mcData.items[node.id]?.name;
+        });
+    }
+
+    /**
+     * Checks if nodes pass a filter. If a parent node does not pass, then neither do it's children
+     * @param node
+     * @param filter 
+     * @returns 
+     */
+    private nodesMatching(node: RecipeTreeNode, filter: (node: RecipeTreeNode) => boolean): (RecipeTreeNode | null)[] {
+        if (node.requires && filter(node)) {
+            const childResults = node.requires.map(child => {
+                return this.nodesMatching(child, filter);
+            }).reduce((prev: (RecipeTreeNode | null)[], curr: (RecipeTreeNode | null)[]) => {
+                return [...prev, ...curr];
+            }, []);
+            childResults.push(filter(node) ? node : null);
+            return childResults.filter(c => c !== null);
+        } else {
+            return filter(node) ? [node] : [null];
+        }
+    }
+
+    private build(node: RecipeTreeNode, utils: Behaviours) {
         // Skip items that can't be crafted, we already have in the tree and
         // items we can cut off early from
         if (!node.recipes || this.allRequiredIds.includes(node.id) || this.earlyCutoff(node.id)) return;
 
         this.allRequiredIds.push(node.id);
-        console.log("Continuing", this.mcData.items[node.id].name);
         const recipe = node.recipes![0];
-        console.log("RECP", recipe);
         let requires: RecipeItem[];
         if (recipe.inShape) {
             requires = recipe.inShape.flat();
@@ -107,10 +146,7 @@ export class RecipeTree {
                 if (newReq.recipes && newReq.recipes.length > 0) {
                     this.build(newReq, utils);
                 }
-                console.log(">>>---");
             });
-        } else {
-            console.log("No ingredients");
         }
     }
 
