@@ -18,5 +18,8 @@
     "mineflayer-blockfinder": "^0.0.7",
     "mineflayer-pathfinder": "^2.4.5",
     "vec3": "^0.1.10"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
   }
 }
