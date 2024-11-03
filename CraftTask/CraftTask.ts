@@ -9,6 +9,7 @@ import { Vec3 } from "vec3";
 import { MineTask } from "./MineTask";
 import { MoveTask } from "./MoveTask";
 import { DirectCraftTask } from "./DirectCraftTask";
+import { BlockSource, SourceType } from "./BlockSource";
 
 export class CraftTask extends BotTask<null> {
     private itemName: string;
@@ -66,11 +67,6 @@ export class CraftTask extends BotTask<null> {
         return newItems;
     }
 
-    private needsMining(itemName: string) {
-        const recipes = this.bot.recipesAll(this.mcData.itemsByName[itemName].id, null, this.craftingTable);
-        return recipes.length === 0;
-    }
-
     private nextTask(): BotTask<any> {
         if (!this.recipeTree) throw new Error(`[CraftTask ${this.itemName}] Invalid recipe tree when creating subtask`);
 
@@ -95,21 +91,31 @@ export class CraftTask extends BotTask<null> {
         const nextItem = incomplete[0];
 
         // have ingredients -> just craft
-        // is craftable but don't have ingredients -> but craft
+        // is craftable but don't have ingredients -> complex craft
         // isn't craftable -> go mining
-
+        const sourceType = BlockSource.SourceType(this.bot, this.mcData, this.craftingTable, nextItem);
+        console.log(`[CraftTask ${this.itemName}] ${nextItem} source: ${SourceType[sourceType]}`);
         if (this.utils.canCraft(this.bot, nextItem, this.mcData, this.craftingTable!)) {
             console.log(`[CraftTask ${this.itemName}] Bot can directly craft a ${nextItem}`);
             // We have the ingredients, so we can just make this
             return new DirectCraftTask(this.bot, this.mcData, this.utils, nextItem, this.craftingTable!, this.amount);
-        } else if (!this.needsMining(nextItem)) {
+        } else if (sourceType === SourceType.Crafted) {
             console.log(`[CraftTask ${this.itemName}] Need to craft ${nextItem}`);
             // It's a craftable item, so we kick off a sub-CraftTask to create that
             return new CraftTask(this.bot, this.utils, nextItem, 1, this.mcData, false);
         } else {
-            // Will need to find this in the world (i.e. not possible to craft it at all)
-            console.log(`[CraftTask ${this.itemName}] Need to mine for ${nextItem}`);
-            return new MineTask(this.bot, this.utils, this.mcData, nextItem);
+            if(sourceType === SourceType.Mined) {
+                // Will need to find this in the world (i.e. not possible to craft it at all)
+                const source = BlockSource.GetSource(this.mcData, nextItem);
+                console.log(`[CraftTask ${this.itemName}] Need to mine for ${nextItem} (sourced from ${source})`);
+                return new MineTask(this.bot, this.utils, this.mcData, source);
+            } else if(sourceType === SourceType.Smelted) {
+                // TODO: SmeltTask
+                throw new Error(`Can't create this recipe - bot can't smelt things yet (sourcing ${nextItem})!`);
+            } else {
+                // Can't end up here
+                throw new Error(`Impossible to get here?! Source: ${SourceType[sourceType]}, Next: ${nextItem}`);
+            }
         }
     }
 
