@@ -4,7 +4,6 @@ import { Behaviours } from "./utils";
 import { Movements } from "mineflayer-pathfinder";
 import { IndexedData } from "minecraft-data";
 import { Vec3 } from "vec3";
-import { RecipeTree } from "./RecipeTree";
 import { CraftTask } from "./CraftTask/CraftTask";
 import { BotTask } from "./CraftTask/BotTask";
 
@@ -300,10 +299,10 @@ export class Individual {
             case 'crafttree':
                 const rootName = messageParts[1];
                 const totalAmount = messageParts.length > 2 ? parseInt(messageParts[2]) : 1;
-                const craftTask = new CraftTask(bot, this.utils, rootName, totalAmount, this.mcData);
+                const craftTask = new CraftTask(bot, this.utils, rootName, totalAmount, this.mcData, true);
                 this.chat.addChat(this.bot, `On it`, returnAddress);
                 this.runTask(craftTask).then(() => {
-                    this.chat.addChat(this.bot, `Managed to craft that ${messageParts[0]}`, returnAddress);
+                    this.chat.addChat(this.bot, `Managed to craft that ${rootName.replace("_", " ")}`, returnAddress);
                 }).catch((err) => {
                     console.error(err);
                     this.chat.addChat(this.bot, `Can't craft a ${message[0]} at the minute`, returnAddress);
@@ -335,6 +334,8 @@ export class Individual {
                 }
 
             }, 2000);
+            // Note: 2000 here seems to work ok. It can be that if we call tick() too often that things start breaking
+            // eg: block mining is reset too quickly
         });
     }
 

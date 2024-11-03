@@ -37,7 +37,7 @@ export class MineTask extends BotTask<Vec3> {
                 });
             } else {
                 if (!this.goToBlockTask) {
-                    this.goToBlockTask = new MoveTask(this.bot, this.utils, this.mcData, this.findBlockTask.result()![0], 1);
+                    this.goToBlockTask = new MoveTask(this.bot, this.utils, this.mcData, this.findBlockTask.result()![0], 2);
                 }
                 this.goToBlockTask.tick();
             }

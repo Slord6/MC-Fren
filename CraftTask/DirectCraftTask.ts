@@ -18,32 +18,33 @@ export class DirectCraftTask extends BotTask<null> {
         this.craftingTable = craftingTable;
         this.amount = amount;
         this.itemName = itemName;
-        this.goToTableTask = new MoveTask(bot, utils, mcData, craftingTable.position, 2);
 
         console.log(`[DirectCraftTask ${this.itemName}] New`);
-        
+        this.goToTableTask = new MoveTask(bot, utils, mcData, craftingTable.position, 2);
         this.initialCount = this.itemCount();
     }
-    
+
     private itemCount(): number {
         const items = this.bot.inventory.items().filter(item => item.name === this.itemName);
-        if(items.length > 0) {
-            return items.map(i => i.count).reduce((prev, next) => prev+next);
+        if (items.length > 0) {
+            return items.map(i => i.count).reduce((prev, next) => prev + next);
         } else {
             return 0;
         }
     }
-    
+
     public tick(): void {
-        if(this.isComplete()) {
+        if (this.isComplete()) {
             return;
         }
-        
-        if(!this.goToTableTask.isComplete()) {
+
+        if (!this.goToTableTask.isComplete()) {
             this.goToTableTask.tick();
         } else {
             console.log(`[DirectCraftTask Crafting ${this.itemName}]`);
-            this.utils.craft(this.bot, this.itemName, this.mcData, this.amount, this.craftingTable, console.log);
+            this.utils.craft(this.bot, this.itemName, this.mcData, this.amount, this.craftingTable, (msg) => {
+                console.log(`[DirectCraftTask Crafting ${this.itemName} result: ${msg ? msg : "OK"}]`);
+            });
         }
     }
 

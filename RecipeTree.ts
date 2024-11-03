@@ -5,6 +5,8 @@ import { Item } from "prismarine-item";
 import { Block } from "prismarine-block";
 import { Recipe, RecipeItem } from "prismarine-recipe";
 
+export type SimpleItem = {name: string, displayName: string, count: number};
+
 export class RecipeTree {
     private bot: Bot;
     private root: RecipeTreeNode;
@@ -82,7 +84,7 @@ export class RecipeTree {
      * @param obtained 
      * @returns
      */
-    public incomplete(obtained: Item[]): string[] {
+    public incomplete(obtained: {name: string, displayName: string, count: number}[]): string[] {
         console.log("HAVE:", obtained.map(oi => `${oi.displayName}:${oi.count}`));
         // Grab the amount of each item in the array
         const obtainedIds: { [id: number]: number } = {};
@@ -95,36 +97,29 @@ export class RecipeTree {
             }
         });
 
-        // Iterate over all required steps in the recipe
-        const allNodes = this.nodesMatching(this.root, () => true).filter(n => n !== null);
-        let uncollected: string[] = [];
-        allNodes.forEach(node => {
-            // If we didn't see the id in the original array, we don't have it
-            if (obtainedIds[node.id] === undefined) {
-                uncollected.push(this.mcData.items[node.id]?.name);
-            } else {
-                // We did have at least some in our array, so we decrease our count of it
-                // Effectively, mark that those items are "used up" by this bit of the recipe
+        const uncollected = (node: RecipeTreeNode) => {
+            console.log(`Checking ${node.id} (${this.mcData.items[node.id]?.name})`);
+            if (obtainedIds[node.id] !== undefined) {
                 obtainedIds[node.id] -= node.count;
-            }
-        });
-
-        // Now we iterate over all the entries and any that are negative we don't have enough of
-        // so we add them too - but to the front of the queue.
-        // Order is important here, but not sure this is actually correct for all cases
-        for (const key in obtainedIds) {
-            if (obtainedIds.hasOwnProperty(key)) {
-                if (obtainedIds[key] < 0) {
-                    uncollected = [this.mcData.items[key]?.name, ...uncollected];
+                const need = obtainedIds[node.id] < 0;
+                if(need) {
+                    console.log(`Adding ${this.mcData.items[node.id]?.name} (${obtainedIds[node.id]})`);
+                } else {
+                    console.log(`Still have excess ${this.mcData.items[node.id]?.name} (${obtainedIds[node.id]})`);
                 }
+                return need;
             }
-        }
-
+            console.log(`Adding ${node.id} (${this.mcData.items[node.id]?.name})`);
+            return true;
+        };
+        
+        const required = this.nodesMatching(this.root, uncollected).filter(n => n !== null).map(node => this.mcData.items[node.id]?.name);
         const dbg = Object.entries(obtainedIds).map(entry => {
             return `${this.mcData.items[Number(entry[0])]?.name}*${entry[1]}`;
         });
-        console.log("NEED:", `${uncollected} `, `DELTA: ${dbg} `);
-        return uncollected;
+        console.log(`REQ: ${required}\nDIFF: ${dbg}`);
+
+        return required;
     }
 
     /**
@@ -134,16 +129,17 @@ export class RecipeTree {
      * @returns 
      */
     private nodesMatching(node: RecipeTreeNode, filter: (node: RecipeTreeNode) => boolean): (RecipeTreeNode | null)[] {
-        if (node.requires && filter(node)) {
+        const passesFilter = filter(node);
+        if (node.requires && passesFilter) {
             const childResults = node.requires.map(child => {
                 return this.nodesMatching(child, filter);
             }).reduce((prev: (RecipeTreeNode | null)[], curr: (RecipeTreeNode | null)[]) => {
                 return [...prev, ...curr];
             }, []);
-            childResults.push(filter(node) ? node : null);
+            childResults.push(passesFilter ? node : null);
             return childResults.filter(c => c !== null);
         } else {
-            return filter(node) ? [node] : [null];
+            return passesFilter ? [node] : [null];
         }
     }
 

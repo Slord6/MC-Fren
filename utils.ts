@@ -271,12 +271,15 @@ export class Behaviours {
             return;
         }
 
-        bot.lookAt(target.position).then(() => {
-            const tool = this.bestTool(bot, target);
-    
+        const tool = this.bestTool(bot, target);
+
+        bot.lookAt(position).then(() => {
             const doDig = () => {
                 if (target && bot.canDigBlock(target) && target.name != 'air') {
-                    bot.dig(target, true).then(onComplete)
+                    bot.dig(target).then(onComplete).catch((err) => {
+                        console.error(`Failed to dig block ${target.position} (${err})`);
+                        if(onComplete) onComplete();
+                    })
                 } else {
                     console.log(`${bot.username} couldn't dig`, target!.name);
                     if (onComplete) onComplete();
