@@ -271,23 +271,27 @@ export class Behaviours {
             return;
         }
 
-        bot.lookAt(target.position);
         const tool = this.bestTool(bot, target);
 
-        const doDig = () => {
-            if (target && bot.canDigBlock(target) && target.name != 'air') {
-                bot.dig(target, true).then(onComplete)
+        bot.lookAt(position).then(() => {
+            const doDig = () => {
+                if (target && bot.canDigBlock(target) && target.name != 'air') {
+                    bot.dig(target).then(onComplete).catch((err) => {
+                        console.error(`Failed to dig block ${target.position} (${err})`);
+                        if(onComplete) onComplete();
+                    })
+                } else {
+                    console.log(`${bot.username} couldn't dig`, target!.name);
+                    if (onComplete) onComplete();
+                }
+            };
+    
+            if (tool) {
+                bot.equip(tool, 'hand').then(doDig);
             } else {
-                console.log(`${bot.username} couldn't dig`, target!.name);
-                if (onComplete) onComplete();
+                doDig();
             }
-        };
-
-        if (tool) {
-            bot.equip(tool, 'hand').then(doDig);
-        } else {
-            doDig();
-        }
+        });
     }
 
     public info(bot: Bot, messageParts: string[]) {
@@ -329,7 +333,7 @@ export class Behaviours {
         bot.pathfinder.setGoal(new GoalXZ(pos.x + offsetX, pos.z + offsetZ), true);
     }
 
-    public goToTarget(bot: Bot, target: { position: {x: number, y: number, z: number} }, movement: Movements, dist: number, cb: (success: boolean) => void) {
+    public goToTarget(bot: Bot, target: { position: {x: number, y: number | null, z: number} }, movement: Movements, dist: number, cb: (success: boolean) => void) {
         if (!target) {
             if (cb) cb(false);
             return;
@@ -337,7 +341,12 @@ export class Behaviours {
         const p = target.position;
 
         bot.pathfinder.setMovements(movement);
-        const goal = new GoalNear(p.x, p.y, p.z, dist);
+        let goal = null;
+        if(p.y !== null){
+            goal = new GoalNear(p.x, p.y, p.z, dist);
+        } else {
+            goal = new GoalXZ(p.x, p.z);
+        }
         bot.pathfinder.setGoal(goal);
 
         const callbackCheck = () => {
@@ -421,6 +430,11 @@ export class Behaviours {
         }
         if (recipes[0].inShape) recipes[0].inShape = recipes[0].inShape.reverse();
         bot.craft(recipes[0], amount, craftingTable ? craftingTable : undefined).then(craftComplete ? craftComplete : () => { });
+    }
+
+    public canCraft(bot: Bot, itemName: string, mcData: IndexedData, craftingTable: Block) {
+        let recipes = this.getRecipe(bot, itemName, 1, mcData, craftingTable);
+        return (recipes && recipes.length > 0);
     }
 
     public getRecipe(bot: Bot, itemName: string, amount: number, mcData: IndexedData, craftingTable: Block | null = null) {

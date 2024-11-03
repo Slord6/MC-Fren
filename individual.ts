@@ -4,6 +4,8 @@ import { Behaviours } from "./utils";
 import { Movements } from "mineflayer-pathfinder";
 import { IndexedData } from "minecraft-data";
 import { Vec3 } from "vec3";
+import { CraftTask } from "./CraftTask/CraftTask";
+import { BotTask } from "./CraftTask/BotTask";
 
 export class Individual {
     private utils: Behaviours;
@@ -11,6 +13,9 @@ export class Individual {
     private bot: Bot;
     private defaultMove: Movements;
     private mcData: IndexedData;
+
+    private task: BotTask<any> | null = null;
+    private taskRunner: NodeJS.Timeout | null = null;
 
     constructor(bot: Bot, chat: ChatBuffer) {
         this.utils = new Behaviours();
@@ -111,6 +116,7 @@ export class Individual {
                 break;
             case 'stay':
             case 'stop':
+                this.clearActiveTask();
                 this.utils.stop(bot);
                 this.chat.addChat(this.bot, 'ok', returnAddress);
                 break;
@@ -197,7 +203,7 @@ export class Individual {
                     point: this.bot.entity.position
                 })[0];
 
-                this.utils.goToTarget(this.bot, {position: craftingTablePos}, this.defaultMove, 2, (arrivedSuccessfully) => {
+                this.utils.goToTarget(this.bot, { position: craftingTablePos }, this.defaultMove, 2, (arrivedSuccessfully) => {
                     if (!arrivedSuccessfully && craftingTablePos != null) return this.chat.addChat(this.bot, `Couldn't get to the crafting table`, returnAddress);
                     this.utils.craft(this.bot, itemName, this.mcData, amount, bot.blockAt(craftingTablePos), (err) => {
                         if (err) {
@@ -290,9 +296,53 @@ export class Individual {
             case 'torch':
                 this.chat.addChat(this.bot, `Torch? ${this.utils.shouldPlaceTorch(bot)}`, returnAddress);
                 break;
+            case 'crafttree':
+                const rootName = messageParts[1];
+                const totalAmount = messageParts.length > 2 ? parseInt(messageParts[2]) : 1;
+                const craftTask = new CraftTask(bot, this.utils, rootName, totalAmount, this.mcData, true);
+                this.chat.addChat(this.bot, `On it`, returnAddress);
+                this.runTask(craftTask).then(() => {
+                    this.chat.addChat(this.bot, `Managed to craft that ${rootName.replace("_", " ")}`, returnAddress);
+                }).catch((err) => {
+                    console.error(err);
+                    this.chat.addChat(this.bot, `Can't craft a ${message[0]} at the minute`, returnAddress);
+                });
+                break;
             default:
                 this.chat.addChat(this.bot, 'What do you mean?', returnAddress);
                 return;
         }
-    };
+    }
+
+    private runTask<T>(task: BotTask<T>): Promise<T | null> {
+        return new Promise<T | null>((resolve, reject) => {
+            if (this.taskRunner) {
+                this.clearActiveTask();
+                this.utils.stop(this.bot);
+            }
+
+            this.taskRunner = setInterval(() => {
+                if (task.isComplete()) {
+                    resolve(task.result());
+                    this.clearActiveTask();
+                }
+                try {
+                    task.tick();
+                } catch (err) {
+                    this.clearActiveTask();
+                    reject(err);
+                }
+
+            }, 2000);
+            // Note: 2000 here seems to work ok. It can be that if we call tick() too often that things start breaking
+            // eg: block mining is reset too quickly
+        });
+    }
+
+    private clearActiveTask() {
+        if (this.taskRunner) {
+            clearInterval(this.taskRunner);
+        }
+        this.task = null;
+    }
 }
