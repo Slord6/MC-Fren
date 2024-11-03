@@ -9,6 +9,7 @@ import { Vec3 } from "vec3";
 import { MineTask } from "./MineTask";
 import { MoveTask } from "./MoveTask";
 import { Movements } from "mineflayer-pathfinder";
+import { DirectCraftTask } from "./DirectCraftTask";
 
 export class CraftTask extends BotTask<null> {
     private itemName: string;
@@ -29,40 +30,39 @@ export class CraftTask extends BotTask<null> {
 
         this.craftingTable = null;
 
-        console.log(`New craft task for ${this.itemName}`);
+        console.log(`[CraftTask ${this.itemName}] New`);
     }
-    
+
     private nextTask(): BotTask<any> {
-        if(!this.recipeTree) throw new Error("Invalid recipe tree when creating subtask");
+        if (!this.recipeTree) throw new Error("Invalid recipe tree when creating subtask");
+        
+        if (!this.craftingTable) {
+            throw Error("Invalid state - no crafting table when creating next task");
+        }
 
         const incomplete: string[] = this.recipeTree.incomplete(this.bot.inventory.items());
-        if(incomplete.length === 0) {
+        if (incomplete.length === 0) {
             // presumably have finished
             // TODO: Make WaitTask or NoOp task
             return new MoveTask(this.bot, this.utils, this.mcData, this.bot.entity.position);
+        } else if (incomplete.length === 1) {
+            console.log(`[CraftTask ${this.itemName}] Final step: ${this.itemName} (${incomplete[0]})`);
+            // Final craft
+            return new DirectCraftTask(this.bot, this.mcData, this.utils, this.itemName, this.craftingTable!, this.amount);
         }
-        
-        if(!this.craftingTable) {
-            throw Error("Invalid state - no crafting table when checking craftability");
-        }
-        if(this.utils.canCraft(this.bot, incomplete[0], this.mcData, this.craftingTable!)) {
-            console.log(`CraftTask - Bot can directly craft a ${incomplete[0]}`);
-            if(this.bot.entity.position.distanceTo(this.craftingTable!.position) > 2) {
-                console.log(`CraftTask - Moving to table for ${incomplete[0]}`);
-                return new MoveTask(this.bot, this.utils, this.mcData, this.craftingTable!.position, 2);
-            } else {
-                console.log(`CraftTask - Crafting ${incomplete[0]}`);
-                return new CraftTask(this.bot, this.utils, incomplete[0], 1, this.mcData);
-            }
+        // TODO, can merge with else from above??
+        if (this.utils.canCraft(this.bot, incomplete[0], this.mcData, this.craftingTable!)) {
+            console.log(`[CraftTask ${this.itemName}] Bot can directly craft a ${incomplete[0]}`);
+            return new DirectCraftTask(this.bot, this.mcData, this.utils, incomplete[0], this.craftingTable!, this.amount);
         }
         return new MineTask(this.bot, this.utils, this.mcData, incomplete[0]);
     }
 
     private ensureCraftingTable(): boolean {
-        if(this.craftingTable == null) {
-            if(this.activeSubTask) {
+        if (this.craftingTable == null) {
+            if (this.activeSubTask) {
                 this.activeSubTask.tick();
-                if(this.activeSubTask.isComplete()) {
+                if (this.activeSubTask.isComplete()) {
                     const craftingTablePosition = this.activeSubTask.result()[0] as Vec3;
                     this.craftingTable = this.bot.blockAt(craftingTablePosition);
 
@@ -83,26 +83,15 @@ export class CraftTask extends BotTask<null> {
     }
 
     public tick(): void {
-        if(this.isComplete()) {
-            return;
-        }
-        
-        if(!this.ensureCraftingTable()) {
+        if (this.isComplete()) {
             return;
         }
 
-        const incomplete = this.recipeTree!.incomplete(this.bot.inventory.items());
-        if(incomplete.length === 1) {
-            console.log(`Final craft in CraftTask for ${this.itemName} (${incomplete[0]})`);
-            // Final craft
-            // TODO: handle amount > 0
-            this.utils.goToTarget(this.bot, this.craftingTable!, new Movements(this.bot), 2, () => {
-                this.utils.craft(this.bot, this.itemName, this.mcData, this.amount, this.craftingTable, console.log);
-            });
+        if (!this.ensureCraftingTable()) {
             return;
         }
 
-        if(this.activeSubTask === null || this.activeSubTask.isComplete()) {
+        if (this.activeSubTask === null || this.activeSubTask.isComplete()) {
             this.activeSubTask = this.nextTask();
         } else {
             this.activeSubTask.tick();

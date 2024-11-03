@@ -27,7 +27,7 @@ export class RecipeTree {
     }
 
     public refresh() {
-        if(this.mcData.itemsByName[this.itemName] === undefined) {
+        if (this.mcData.itemsByName[this.itemName] === undefined) {
             throw Error(`Invalid item: ${this.itemName}`);
         }
         const utils = new Behaviours();
@@ -77,23 +77,54 @@ export class RecipeTree {
     }
 
     /**
-     * Given a set of items, returnt he names of the blocks in
+     * Given a set of items, return the names of the blocks in
      * the tree that have not yet been collected 
      * @param obtained 
      * @returns
      */
     public incomplete(obtained: Item[]): string[] {
-        //TODO: Handle recipes where not checking quantites breaks
-        //E.g oak_fence (the planks get used for sticks and then we don't have enough planks)
-        // (I think)
-        const obtainedIds = obtained.map(i => this.mcData.itemsByName[i.name].id);
-        const notCollected = (node: RecipeTreeNode) => {
-            return !obtainedIds.includes(node.id);
-        };
-
-        return this.nodesMatching(this.root, notCollected).filter(n => n !== null).map(node => {
-            return this.mcData.items[node.id]?.name;
+        console.log("HAVE:", obtained.map(oi => `${oi.displayName}:${oi.count}`));
+        // Grab the amount of each item in the array
+        const obtainedIds: { [id: number]: number } = {};
+        obtained.forEach(i => {
+            const id = this.mcData.itemsByName[i.name].id;
+            if (obtainedIds[id] === undefined) {
+                obtainedIds[id] = i.count;
+            } else {
+                obtainedIds[id] += i.count;
+            }
         });
+
+        // Iterate over all required steps in the recipe
+        const allNodes = this.nodesMatching(this.root, () => true).filter(n => n !== null);
+        let uncollected: string[] = [];
+        allNodes.forEach(node => {
+            // If we didn't see the id in the original array, we don't have it
+            if (obtainedIds[node.id] === undefined) {
+                uncollected.push(this.mcData.items[node.id]?.name);
+            } else {
+                // We did have at least some in our array, so we decrease our count of it
+                // Effectively, mark that those items are "used up" by this bit of the recipe
+                obtainedIds[node.id] -= node.count;
+            }
+        });
+
+        // Now we iterate over all the entries and any that are negative we don't have enough of
+        // so we add them too - but to the front of the queue.
+        // Order is important here, but not sure this is actually correct for all cases
+        for (const key in obtainedIds) {
+            if (obtainedIds.hasOwnProperty(key)) {
+                if (obtainedIds[key] < 0) {
+                    uncollected = [this.mcData.items[key]?.name, ...uncollected];
+                }
+            }
+        }
+
+        const dbg = Object.entries(obtainedIds).map(entry => {
+            return `${this.mcData.items[Number(entry[0])]?.name}*${entry[1]}`;
+        });
+        console.log("NEED:", `${uncollected} `, `DELTA: ${dbg} `);
+        return uncollected;
     }
 
     /**
@@ -155,7 +186,7 @@ export class RecipeTree {
     }
 
     private printNode(node: RecipeTreeNode, prefix: string = "") {
-        console.log(prefix, `[${node.id}]${this.mcData.items[node.id]?.name} * ${node.count}`);
+        console.log(prefix, `[${node.id}]${this.mcData.items[node.id]?.name} * ${node.count} `);
         if (node.requires) {
             node.requires.forEach(child => {
                 this.printNode(child, prefix + ">");

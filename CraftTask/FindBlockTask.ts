@@ -23,7 +23,7 @@ export class FindBlockTask extends BotTask<Vec3[]> {
         this.foundBlocks = [];
         this.moveTask = null;
 
-        console.log(`New find block task for ${this.blockName}`);
+        console.log(`[FindBlock ${this.blockName}] New`);
     }
 
     public tick(): void {
@@ -57,13 +57,13 @@ export class FindBlockTask extends BotTask<Vec3[]> {
         });
 
         if (newFound.length > 0) {
-            console.log(`Find block task - found ${newFound.length} more ${this.blockName}`);
+            console.log(`[FindBlock ${this.blockName}] Found ${newFound.length} more ${this.blockName}`);
             this.foundBlocks?.push(...newFound);
         } else {
             const offsetX = (Math.random() - 0.5) * this.range * 2;
             const offsetZ = (Math.random() - 0.5) * this.range * 2;
             const pos = this.bot.entity.position;
-            console.log(`Find block task - can't see any ${this.blockName}, moving ${offsetX}, ${offsetZ}`);
+            console.log(`[FindBlock ${this.blockName}] No ${this.blockName} nearby, moving ${offsetX}, ${offsetZ}`);
             this.moveTask = new MoveTask(this.bot, this.utils, this.mcData, { x: pos.x + offsetX, y: null, z: pos.z + offsetZ });
             this.moveTask.tick();
         }

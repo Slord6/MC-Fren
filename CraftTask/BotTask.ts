@@ -15,7 +15,7 @@ export abstract class BotTask<T> implements Task<T> {
     }
     
     public tick(): void {
-        
+
     }
 
     public isComplete() {

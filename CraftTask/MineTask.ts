@@ -22,7 +22,7 @@ export class MineTask extends BotTask<Vec3> {
         this.findBlockTask = new FindBlockTask(this.bot, this.mcData, this.utils, this.blockName, 1);
         this.goToBlockTask = null;
 
-        console.log(`New mine task for ${this.blockName}`);
+        console.log(`[MineTask ${this.blockName}] New`);
     }
 
     public tick(): void {

@@ -16,7 +16,7 @@ export class MoveTask extends BotTask<Vec3> {
         this.position = position;
         this.within = within;
 
-        console.log(`New move task for (${this.position.x},${this.position.y},${this.position.z}) (within ${this.within})`);
+        console.log(`[MoveTask (${this.position.x},${this.position.y},${this.position.z})] New (within ${this.within})`);
     }
 
     public tick(): void {

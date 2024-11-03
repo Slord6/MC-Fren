@@ -304,6 +304,9 @@ export class Individual {
                 this.chat.addChat(this.bot, `On it`, returnAddress);
                 this.runTask(craftTask).then(() => {
                     this.chat.addChat(this.bot, `Managed to craft that ${messageParts[0]}`, returnAddress);
+                }).catch((err) => {
+                    console.error(err);
+                    this.chat.addChat(this.bot, `Can't craft a ${message[0]} at the minute`, returnAddress);
                 });
                 break;
             default:
@@ -312,32 +315,27 @@ export class Individual {
         }
     }
 
-    private runTask<T>(task: BotTask<T>): Promise<T> {
-        const resolve = () => {
-            return task.result();
-        }
-        const reject = (reason: any) => reason;
-        if (this.taskRunner) {
-            this.clearActiveTask();
-            this.utils.stop(this.bot);
-        }
-
-        this.taskRunner = setInterval(() => {
-            if (task.isComplete()) {
-                resolve();
+    private runTask<T>(task: BotTask<T>): Promise<T | null> {
+        return new Promise<T | null>((resolve, reject) => {
+            if (this.taskRunner) {
                 this.clearActiveTask();
-            }
-            try {
-                task.tick();
-            } catch (err) {
-                console.error("Task failed, aborting", err);
-                this.clearActiveTask();
+                this.utils.stop(this.bot);
             }
 
-        }, 2000);
+            this.taskRunner = setInterval(() => {
+                if (task.isComplete()) {
+                    resolve(task.result());
+                    this.clearActiveTask();
+                }
+                try {
+                    task.tick();
+                } catch (err) {
+                    this.clearActiveTask();
+                    reject(err);
+                }
 
-        // TODO sort out this promise, esp the catch case above
-        return new Promise(resolve);
+            }, 2000);
+        });
     }
 
     private clearActiveTask() {
